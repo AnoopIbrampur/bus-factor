@@ -1,0 +1,85 @@
+name: weekly
+# Refresh data, score, freeze this week into the predictions branch, grade anything due, deploy.
+on:
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+jobs:
+  harvest:
+    uses: ./.github/workflows/harvest.yml
+    with:
+      replan: "true"
+      fresh_days: "5"
+    secrets: inherit
+  publish:
+    needs: harvest
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          ref: predictions
+          path: record
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Pull the latest state
+        run: |
+          for A in universe requires; do scripts/state.sh pull "$A.parquet" "data/$A.parquet"; done
+          scripts/state.sh pull models.json data/models.json
+          scripts/state.sh pull backtest.json data/backtest.json
+          for S in 0 1 2 3 4 5; do
+            scripts/state.sh pull "rows-$S.parquet" "data/rows-$S.parquet"
+          done
+      - name: Score, freeze and grade
+        run: uv run busfactor weekly --predictions record/predictions
+      - name: Save the frozen week
+        working-directory: record
+        run: |
+          git config user.name "bus-factor-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A predictions
+          # Only new files may enter this branch: a frozen file is never changed.
+          if git diff --cached --name-status | grep -qvE '^A'; then
+            echo "refusing to change a frozen file"; exit 1
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "Freeze predictions for the week"
+            git push origin predictions
+          fi
+      - name: Build the site
+        run: uv run busfactor site --out _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy, first try
+        id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - name: Deploy, second try
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+      - name: Keep the schedule alive
+        run: |
+          # GitHub disables schedules after 60 days without activity. Only commit if main is quiet.
+          AGE=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
+          if [ "$AGE" -gt 45 ]; then
+            git config user.name "bus-factor-bot"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            date -u +%F > docs/last_weekly_run.txt
+            git add docs/last_weekly_run.txt
+            git commit -m "Keep the weekly schedule alive"
+            git push origin main
+          fi

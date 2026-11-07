@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% set b = ctx.backtest %}
+{% block body %}
+<h1>Method and limits</h1>
+<p class="lede">How the numbers are made, what the test found, and what this data can't tell you. The full record is in the <a href="https://github.com/AnoopIbrampur/bus-factor/tree/main/docs">project docs</a>.</p>
+
+<h2>What was tested</h2>
+<p>{{ ctx.result_summary }}</p>
+<dl class="facts">
+<div><dt>Forecast model, log loss</dt><dd>{{ '%.3f'|format(b.overall.logistic.log_loss) }}</dd><div class="note">Lower is better</div></div>
+<div><dt>Best simple rule, log loss</dt><dd>{{ '%.3f'|format(b.overall[b.best_baseline].log_loss) }}</dd><div class="note">{{ ctx.base_label|capitalize }}</div></div>
+<div><dt>Improvement, 95% interval</dt><dd class="text">{{ '%.4f'|format(b.logistic_vs_best_baseline.ci[0]) }} to {{ '%.4f'|format(b.logistic_vs_best_baseline.ci[1]) }}</dd><div class="note">Passing needed this to stay above zero</div></div>
+</dl>
+<div class="scroll"><table><caption>All four test years pooled, {{ b.overall.logistic.n|comma }} project-years, {{ b.overall.logistic.positives|comma }} went quiet</caption>
+<thead><tr><th>Method</th><th class="num">Log loss</th><th class="num">Brier</th><th class="num">ROC-AUC</th><th class="num">PR-AUC</th><th class="num">Quiet share in top tenth</th></tr></thead>
+<tbody>
+{% for key, label in [('logistic', 'Logistic model'), ('lightgbm', 'LightGBM model'), ('last_commit', 'Last commit date'), ('commits_past_year', 'Commits in past year')] %}{% set m = b.overall[key] %}<tr><td>{{ label }}</td><td class="num">{{ '%.3f'|format(m.log_loss) }}</td><td class="num">{{ '%.3f'|format(m.brier) }}</td><td class="num">{{ '%.3f'|format(m.roc_auc) }}</td><td class="num">{{ '%.3f'|format(m.pr_auc) }}</td><td class="num">{{ '%.0f'|format(100 * m.precision_top_decile) }}%</td></tr>
+{% endfor %}</tbody></table></div>
+<figure>{{ ctx.calibration_svg|safe }}
+<figcaption>Calibration of the published forecast in the past-years test. Dots on the dashed line mean the stated chance matched what happened.</figcaption></figure>
+<details><summary>By test year</summary>
+<div class="scroll"><table><thead><tr><th>Year starting</th><th class="num">Projects</th><th class="num">Went quiet</th><th class="num">Model log loss</th><th class="num">Simple rule log loss</th></tr></thead>
+<tbody>{% for year, row in b.by_year|dictsort %}<tr><td>{{ year }}</td><td class="num">{{ row.logistic.n|comma }}</td><td class="num">{{ row.logistic.positives|comma }}</td><td class="num">{{ '%.3f'|format(row.logistic.log_loss) }}</td><td class="num">{{ '%.3f'|format(row[b.best_baseline].log_loss) }}</td></tr>{% endfor %}</tbody></table></div>
+</details>
+<details><summary>Stricter outcome: no commit and no PyPI release</summary>
+<p>Log loss {{ '%.3f'|format(b.strict.overall.logistic.log_loss) }} for the model against {{ '%.3f'|format(b.strict.overall[b.strict.best_baseline].log_loss) }} for the best simple rule. {{ b.strict.overall.logistic.positives|comma }} of {{ b.strict.overall.logistic.n|comma }} project-years met this outcome. This is a secondary result and doesn't decide anything.</p>
+</details>
+{% if b.criticality %}<details><summary>Comparison with OpenSSF Criticality Score</summary>
+<p>Only one dated score list can still be downloaded, from July 2025, so this covers the last test year only: {{ b.criticality.n|comma }} projects. ROC-AUC was {{ '%.3f'|format(b.criticality.logistic_auc) }} for the model and {{ '%.3f'|format(b.criticality.criticality_auc) }} for the score. The difference has a 95% interval of {{ '%.3f'|format(b.criticality.diff_ci[0]) }} to {{ '%.3f'|format(b.criticality.diff_ci[1]) }}. Criticality Score was built to measure importance rather than to forecast quiet, so this is a fair check and no verdict on that project.</p>
+</details>{% endif %}
+
+<h2>How people are counted</h2>
+<p>Git histories are read on GitHub's servers. Author emails and names are hashed in memory with a throwaway salt, merged when they obviously belong to one person, and replaced by a number that only means something inside one repo. Nothing identifying is stored or published.</p>
+<details><summary>Definitions</summary>
+<ul>
+<li><strong>Active people:</strong> anyone with at least one human commit on the default branch in the past 365 days.</li>
+<li><strong>People making half the commits:</strong> the fewest people who together made at least half of those commits. This is the bus factor.</li>
+<li><strong>Few active contributors:</strong> an active project where that number is one, or where two or fewer people committed.</li>
+<li><strong>Looks quiet:</strong> no human commit in 365 days.</li>
+<li><strong>Slowing down:</strong> human commits at least halved from the year before, among projects with 10 or more commits that year.</li>
+<li><strong>Unknown:</strong> we couldn't find or read the repository. This is never treated as healthy.</li>
+</ul></details>
+<details><summary>Limits of counting people</summary>
+<ul>
+<li>One person using two names and emails can count twice. Two people can only merge if they share an exact email or full name, so that is rare.</li>
+<li>Bots are found by name and email patterns, which were checked by hand on a sample. Automation with a human-looking name counts as a person.</li>
+<li>Co-authors in commit messages aren't counted. Whoever squashes a pull request can take the credit for it.</li>
+<li>Monorepos can't be split by package.</li>
+</ul></details>
+
+<h2>What the data can't show</h2>
+<ul>
+<li>Git can't tell finished software from software nobody is looking after. In our hand check of past cases, {{ ctx.audit_line }}</li>
+<li>The 2022 cohort leans towards projects already popular then, and repos deleted before our read can't be scored, so results describe survivors to some degree. {{ b.coverage.repos_unreadable|comma }} of {{ b.coverage.cohort_repos|comma }} repos couldn't be read. If they had all gone quiet in every test year, the quiet rate would be {{ '%.0f'|format(100 * b.coverage.base_rate_if_all_unreadable_were_quiet) }}% rather than {{ '%.0f'|format(100 * b.coverage.test_base_rate) }}%.</li>
+<li>Download counts include CI and mirrors. They measure machines, not people.</li>
+<li>Requirements are read from each package's latest release and end at the top {{ n_packages|comma }}.</li>
+<li>Dates come from git, which records no push date, so a few commits can appear earlier than they became public.</li>
+</ul>
+
+<h2>Safety</h2>
+<p>The xz attacker looked for lone, tired maintainers of important projects. This site tries not to make that easier. There is no list ranked by weakness, no sort by health or forecast, no way to combine "looks quiet" with "few active contributors", and no names, usernames or repository links. Frozen forecasts are sorted by a hash. The aim is to show where help and funding should go.</p>
+
+<h2>Credits</h2>
+<p>Package data comes from <a href="https://ecosyste.ms">ecosyste.ms</a> under CC-BY-SA 4.0, and data here is shared under the same licence. Requirements come from PyPI. Related work: <a href="https://github.com/ossf/criticality_score">OpenSSF Criticality Score</a>, <a href="https://securityscorecards.dev">OpenSSF Scorecard</a>, and the Harvard and Linux Foundation census studies. Type is Spectral and Atkinson Hyperlegible, both under the SIL Open Font License.</p>
+{% endblock %}

@@ -11,6 +11,7 @@ import math
 import shutil
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
@@ -35,8 +36,12 @@ def clean(value):
     """NaN and pandas NA become None, so templates can't print 'nan' as if it were data."""
     if value is None or value is pd.NA:
         return None
-    if isinstance(value, float) and math.isnan(value):
-        return None
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, float | np.floating):
+        if math.isnan(value):
+            return None
+        return int(value) if float(value).is_integer() else float(value)
     return value
 
 

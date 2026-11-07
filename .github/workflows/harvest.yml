@@ -2,6 +2,14 @@ name: harvest
 # Refreshes git history for every target repo in parallel shards. Each shard stops itself before
 # the 6-hour job limit and saves what it has, so re-running this workflow simply carries on.
 on:
+  workflow_call:
+    inputs:
+      replan:
+        type: string
+        default: "true"
+      fresh_days:
+        type: string
+        default: "5"
   workflow_dispatch:
     inputs:
       replan:
