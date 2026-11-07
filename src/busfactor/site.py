@@ -135,6 +135,10 @@ def build(data_dir: Path, out: Path) -> None:
         indirect = list(row["indirect"]) if row is not None else []
         q = {
             **p,
+            "n_direct": len(direct),
+            "n_indirect": len(indirect),
+            "downloads_sum": int(row["downloads_sum"]) if row is not None else 0,
+            "downloads_max": int(row["downloads_max"]) if row is not None else 0,
             "direct": direct[:LIST_LIMIT],
             "indirect": indirect[:LIST_LIMIT],
             "direct_more": len(direct) > LIST_LIMIT,
