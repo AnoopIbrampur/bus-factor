@@ -1,0 +1,36 @@
+name: backtest
+# The pre-registered test. It reads frozen inputs, so re-running it gives the same answer.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Pull inputs
+        run: |
+          scripts/state.sh pull cohort.parquet data/cohort.parquet
+          scripts/state.sh pull release_days.parquet data/release_days.parquet
+          for S in 0 1 2 3 4 5; do
+            scripts/state.sh pull "rows-$S.parquet" "data/rows-$S.parquet"
+            scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"
+          done
+          curl -sSL -A internet-bus-factor-research -o crit.csv.gz \
+            https://raw.githubusercontent.com/ossf/criticality_score/main/data/20250725_all.csv.gz
+          uv run busfactor criticality crit.csv.gz
+      - name: Run the test
+        run: uv run busfactor backtest
+      - name: Save
+        run: |
+          scripts/state.sh push data/backtest.json backtest.json
+          scripts/state.sh push data/models.json models.json
+          scripts/state.sh push data/panel.parquet panel.parquet
+          scripts/state.sh push data/backtest_preds.parquet backtest_preds.parquet
