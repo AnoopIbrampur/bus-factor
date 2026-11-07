@@ -40,3 +40,16 @@ author whose name or email contained a word common in automation.
 
 Limits: this check can't find automation with an ordinary human-looking name, and an account that
 mixes a person's commits with scripted ones counts as a person.
+
+## The 2022 archive restore: proven on a runner (2026-11-07)
+
+Run 42411583098 restored `packages-2022-11-09.tar.gz` on a free GitHub runner.
+
+- Download and unpack took about 12 minutes. The runner had 101 GB free after clearing unused
+  toolchains, far more than the 14 GB assumed.
+- The tarball holds three files: `license.txt`, `readme.md` and a `.sql` file that is a Postgres
+  custom-format dump (`PGDMP` magic bytes, dump format 1.14, pg_dump 14.2).
+- No Postgres server is needed. `pg_restore -a -t registries -t packages -f -` from the newest
+  client (PGDG repo) emits COPY text that Python can read from a pipe.
+- The `packages` table has `downloads`, `downloads_period`, `repository_url` and `repo_metadata`.
+- The dump also holds `maintainers` and `maintainerships` tables. They are never restored.
