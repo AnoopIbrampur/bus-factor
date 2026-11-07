@@ -246,6 +246,44 @@ def evaluate(preds: pd.DataFrame, reps: int = 2000) -> dict:
     }
 
 
+def criticality_comparison(preds: pd.DataFrame, scores: pd.Series, reps: int = 2000) -> dict | None:
+    """Compare ranking quality with OpenSSF criticality on the only year it can be used.
+
+    Scores can't be turned into probabilities without earlier data, so this compares ROC-AUC, on
+    the repos the score covers. Direction was fixed in advance: a lower score means more likely
+    quiet. CI comes from resampling repos.
+    """
+    last = preds[preds["cutoff"] == TEST_CUTOFFS[-1].isoformat()].copy()
+    last["criticality"] = last["repo_key"].map(scores)
+    last = last.dropna(subset=["criticality"])
+    if last.empty or last["y"].nunique() < 2:
+        return None
+    y = last["y"].to_numpy()
+    model, crit = last["logistic"].to_numpy(), -last["criticality"].to_numpy()
+    rng = np.random.default_rng(0)
+    diffs = []
+    for _ in range(reps):
+        ix = rng.integers(0, len(y), len(y))
+        if len(set(y[ix].tolist())) == 2:
+            diffs.append(roc_auc_score(y[ix], model[ix]) - roc_auc_score(y[ix], crit[ix]))
+    return {
+        "n": int(len(y)),
+        "positives": int(y.sum()),
+        "logistic_auc": float(roc_auc_score(y, model)),
+        "criticality_auc": float(roc_auc_score(y, crit)),
+        "diff_ci": [float(np.quantile(diffs, 0.025)), float(np.quantile(diffs, 0.975))],
+    }
+
+
+def build_panel(rows: pd.DataFrame, release_days=None) -> pd.DataFrame:
+    """Features and outcomes for every cutoff. Slow, so it is run once and saved."""
+    frames = []
+    for c in sorted(set(TRAIN_CUTOFFS) | set(TEST_CUTOFFS)):
+        frames.append(panel_row(rows, c, release_days))
+        print(f"panel {c}: {len(frames[-1])} eligible repos", flush=True)
+    return pd.concat(frames, ignore_index=True)
+
+
 def save_json(obj, path) -> None:
     with open(path, "w") as f:
         json.dump(obj, f, indent=1, sort_keys=True)

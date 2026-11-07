@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Track record</h1>
+<p class="lede">Each week, the forecast for every eligible project is frozen in public before the outcome exists. A year later each one is graded. Frozen files are never changed.</p>
+{% set graded = ctx.track.weeks|selectattr('graded')|list %}
+<dl class="facts">
+<div><dt>Weeks frozen</dt><dd>{{ ctx.track.weeks|length }}</dd></div>
+<div><dt>Weeks graded</dt><dd>{{ graded|length }}</dd></div>
+<div><dt>First grades due</dt><dd class="text">{{ ctx.track.next_due or 'None pending' }}</dd></div>
+</dl>
+{% if graded %}
+<div class="scroll"><table><caption>Lower log loss is better. Compares the published forecast with the simple rule frozen beside it.</caption>
+<thead><tr><th>Week</th><th class="num">Graded</th><th class="num">Went quiet</th><th class="num">Forecast log loss</th><th class="num">Simple rule log loss</th></tr></thead>
+<tbody>{% for w in graded %}<tr><td>{{ w.week }}</td><td class="num">{{ w.n_graded|comma }}</td><td class="num">{{ w.quiet|comma }}</td><td class="num">{{ '%.3f'|format(w.log_loss) }}</td><td class="num">{{ '%.3f'|format(w.baseline_log_loss) }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% else %}
+<p>Nothing has been graded yet, because the first 12-month window hasn't ended. There is no live result to report until then, and none is implied.</p>
+{% endif %}
+<div class="scroll"><table><caption>Frozen weeks</caption>
+<thead><tr><th>Week</th><th class="num">Projects</th><th>File</th></tr></thead>
+<tbody>{% for w in ctx.track.weeks|reverse %}<tr><td>{{ w.week }}</td><td class="num">{{ w.n|comma }}</td><td><a href="https://github.com/AnoopIbrampur/bus-factor/blob/predictions/predictions/{{ w.week }}.json.gz">Frozen file</a></td></tr>{% endfor %}</tbody>
+</table></div>
+
+<h2>Scoring rules</h2>
+<p>These were published before the first freeze (decision D15 in the <a href="https://github.com/AnoopIbrampur/bus-factor/blob/main/docs/decisions.md">decisions log</a>).</p>
+<ul>
+<li>A project counts as gone quiet if no human commit lands on its default branch in the 365 days after the freeze date.</li>
+<li>Each file is graded once its 365 days are over, using log loss, against the simple rule frozen in the same file.</li>
+<li>Projects whose history can't be read at grading time are left out and counted.</li>
+<li>Frozen files are sorted by a hashed key so they aren't ranked lists.</li>
+</ul>
+
+<h2>Past-years test</h2>
+<p>This is a separate thing from the live record. See <a href="../method/">method and limits</a> for the numbers.</p>
+<details><summary>What this can't show</summary>
+<p>Weekly forecasts overlap heavily, because the same projects appear each week, so 52 weeks of grades are not 52 independent tests. A year of results will cover only one year's conditions. Being graded as quiet doesn't mean a project was neglected: it may simply be finished.</p>
+</details>
+{% endblock %}

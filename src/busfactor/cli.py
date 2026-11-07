@@ -1,14 +1,16 @@
 """Command line entry points, one per pipeline step, so each Actions job stays a single line."""
 
 import argparse
-from datetime import UTC, datetime, timedelta
+import json
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 
-from . import deps, harvest, universe
-from .config import DATA_DIR, PRIVATE_DIR
-from .repos import host_of, repo_key
+from . import build, deps, forecast, harvest, live, narrative, site, universe
+from .config import DATA_DIR, PRIVATE_DIR, TEST_CUTOFFS, TRAIN_CUTOFFS
+from .health import FEATURES, measures_at
+from .repos import host_of, normalize_repo_url, repo_key
 
 
 def cmd_plan(args) -> None:
@@ -69,11 +71,139 @@ def cmd_releases(args) -> None:
     print(f"{len(days)} repo release days")
 
 
+def cmd_backtest(args) -> None:
+    """Run the pre-registered test. See docs/decisions.md before changing anything here."""
+    cohort = pd.read_parquet(DATA_DIR / "cohort.parquet")
+    keys = set(cohort["repo_key"].dropna())
+    rows = build.load_rows(DATA_DIR)
+    rows = rows[rows["repo_key"].isin(keys)]
+    status = build.load_status(DATA_DIR)
+    status = status[status["repo_key"].isin(keys)]
+    release_days = pd.read_parquet(DATA_DIR / "release_days.parquet")
+    panel = forecast.build_panel(rows, release_days)
+    panel.to_parquet(DATA_DIR / "panel.parquet", index=False)
+    preds = forecast.walk_forward(panel, "quiet")
+    preds.to_parquet(DATA_DIR / "backtest_preds.parquet", index=False)
+    result = forecast.evaluate(preds, args.reps)
+    strict = forecast.walk_forward(panel, "quiet_strict")
+    result["strict"] = forecast.evaluate(strict, args.reps)
+
+    crit_map = pd.read_parquet(DATA_DIR / "criticality.parquet")
+    scores = crit_map.set_index("repo_key")["score"]
+    result["criticality"] = forecast.criticality_comparison(preds, scores, args.reps)
+
+    # Coverage and the sensitivity check for repos that can no longer be read.
+    test_n = panel[panel["cutoff"].isin([c.isoformat() for c in TEST_CUTOFFS])]
+    n_quiet, n_all = int(test_n["quiet"].sum()), len(test_n)
+    unreadable = int((status["status"] != "ok").sum()) + len(keys - set(status["repo_key"]))
+    result["coverage"] = {
+        "cohort_packages": len(cohort),
+        "cohort_no_repo": int(cohort["repo_key"].isna().sum()),
+        "cohort_repos": len(keys),
+        "repos_read": int((status["status"] == "ok").sum()),
+        "repos_unreadable": unreadable,
+        "test_rows": n_all,
+        "test_base_rate": n_quiet / n_all,
+        "base_rate_if_all_unreadable_were_quiet": (n_quiet + unreadable * len(TEST_CUTOFFS))
+        / (n_all + unreadable * len(TEST_CUTOFFS)),
+    }
+    result["eligible_by_cutoff"] = panel.groupby("cutoff")["quiet"].agg(["size", "mean"]).to_dict()
+    forecast.save_json(result, DATA_DIR / "backtest.json")
+
+    # The models the weekly job will use: fitted once here, then only ever applied.
+    names = sorted({c for c in TRAIN_CUTOFFS} | {c for c in TEST_CUTOFFS})
+    usable = [c for c in names if c <= TEST_CUTOFFS[-1]]
+    primary_name = result["published_model"]
+    columns = (
+        FEATURES if primary_name == "logistic" else forecast.BASELINES[result["best_baseline"]]
+    )
+    primary = forecast.fit_on(panel, usable, lambda: forecast.Logit(columns), "quiet")
+    base_cols = forecast.BASELINES[result["best_baseline"]]
+    baseline = forecast.fit_on(panel, usable, lambda: forecast.Logit(base_cols), "quiet")
+    forecast.save_json(
+        {
+            "primary": live.model_to_json(primary, primary_name),
+            "baseline": live.model_to_json(baseline, result["best_baseline"]),
+            "passed": result["passed"],
+        },
+        DATA_DIR / "models.json",
+    )
+    print(json.dumps({k: result[k] for k in ("passed", "published_model", "best_baseline")}))
+
+
+def cmd_criticality(args) -> None:
+    """Reduce the OpenSSF score file to hashed repo keys and scores."""
+    table = pd.read_csv(args.csv, usecols=["repo.url", "default_score"])
+    urls = table["repo.url"].map(normalize_repo_url)
+    keep = urls.notna() & table["default_score"].notna()
+    out = pd.DataFrame(
+        {"repo_key": urls[keep].map(repo_key), "score": table.loc[keep, "default_score"]}
+    )
+    out.drop_duplicates("repo_key").to_parquet(DATA_DIR / "criticality.parquet", index=False)
+    print(f"{len(out)} scored repos")
+
+
+def cmd_weekly(args) -> None:
+    """Score this week, freeze it once, grade anything due, and write what the site reads."""
+    today = date.fromisoformat(args.today) if args.today else datetime.now(UTC).date()
+    universe_df = pd.read_parquet(DATA_DIR / "universe.parquet")
+    requires = pd.read_parquet(DATA_DIR / "requires.parquet")
+    rows = build.load_rows(DATA_DIR)
+    specs = json.loads((DATA_DIR / "models.json").read_text())
+    backtest = json.loads((DATA_DIR / "backtest.json").read_text())
+    tracked = rows[rows["repo_key"].isin(set(universe_df["repo_key"].dropna()))]
+    now = measures_at(tracked, today)
+    archived = set(universe_df.loc[universe_df["archived"].eq(True), "repo_key"])
+    eligible = now[(now["days_since_human"] < 365) & ~now["repo_key"].isin(archived)].copy()
+    eligible["prob"] = live.predict(specs["primary"], eligible)
+    eligible["baseline_prob"] = live.predict(specs["baseline"], eligible)
+    eligible["reasons"] = live.reasons(specs["primary"], eligible)
+    names = universe_df.assign(name=universe_df["name"].map(deps.canon)).dropna(subset=["repo_key"])
+    packages = names.sort_values("rank").groupby("repo_key")["name"].apply(list)
+    eligible["packages"] = eligible["repo_key"].map(packages)
+
+    folder = Path(args.predictions)
+    payload = live.freeze_payload(
+        eligible,
+        today,
+        live.model_id(specs["primary"]),
+        live.model_id(specs["baseline"]),
+        "docs/decisions.md D15",
+    )
+    written = live.write_frozen(payload, folder)
+    print("froze" if written else "already frozen", payload["week"], len(eligible))
+    track = live.grade(live.read_frozen(folder), rows, today)
+
+    forecast_cols = eligible[["repo_key", "prob", "reasons"]]
+    table, sim = build.assemble(universe_df, requires, rows, today, forecast_cols)
+    table.to_parquet(DATA_DIR / "site_packages.parquet", index=False)
+    sim.to_parquet(DATA_DIR / "simulator.parquet", index=False)
+    context = narrative.context(backtest, track, today, specs["primary"]["name"])
+    forecast.save_json(context, DATA_DIR / "site_context.json")
+
+
+def cmd_site(args) -> None:
+    site.build(DATA_DIR, Path(args.out))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="busfactor")
     sub = parser.add_subparsers(required=True)
     sub.add_parser("plan").set_defaults(func=cmd_plan)
     sub.add_parser("releases").set_defaults(func=cmd_releases)
+    c = sub.add_parser("criticality")
+    c.add_argument("csv")
+    c.set_defaults(func=cmd_criticality)
+    w = sub.add_parser("weekly")
+    w.add_argument("--predictions", required=True)
+    w.add_argument("--today", default=None)
+    w.set_defaults(func=cmd_weekly)
+    st = sub.add_parser("site")
+    st.add_argument("--out", default="_site")
+    st.set_defaults(func=cmd_site)
+    b = sub.add_parser("backtest")
+    b.add_argument("--reps", type=int, default=2000)
+    b.set_defaults(func=cmd_backtest)
     h = sub.add_parser("harvest")
     h.add_argument("--shard", type=int, required=True)
     h.add_argument("--of", type=int, required=True)

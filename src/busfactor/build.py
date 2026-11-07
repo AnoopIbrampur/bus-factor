@@ -62,6 +62,17 @@ def is_few(row: dict) -> bool:
     return row["bus_factor"] == 1 or row["active_humans"] <= 2
 
 
+def band(prob) -> tuple[str | None, int | None]:
+    """Fixed display bands, set in D14 before any result. Text always goes with the colour."""
+    if prob is None or pd.isna(prob):
+        return None, None
+    if prob < 0.10:
+        return "Lower chance", 1
+    if prob < 0.30:
+        return "Middle chance", 2
+    return "Higher chance", 3
+
+
 def assemble(
     universe: pd.DataFrame,
     requires: pd.DataFrame,
@@ -101,5 +112,14 @@ def assemble(
             row["bus_factor"] = None  # never let a missing value read as a number
         row["state_label"] = STATE_LABEL[state]
         row["state_class"] = STATE_CLASS[state]
+        prob = row.get("prob")
+        row["band_label"], row["band_class"] = band(prob)
+        row["prob_pct"] = None if prob is None or pd.isna(prob) else round(100 * float(prob))
+        share = row.get("top_share")
+        row["top_share_pct"] = None if share is None or pd.isna(share) else round(100 * share)
+        bots = row.get("bot_share")
+        row["bot_share_pct"] = None if bots is None or pd.isna(bots) else round(100 * bots)
+        if not isinstance(row.get("reasons"), list):
+            row["reasons"] = []
         out.append(row)
     return pd.DataFrame(out), sim
