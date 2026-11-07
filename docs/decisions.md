@@ -46,3 +46,39 @@ Historical scores can no longer be downloaded (data audit, surprise 2). The only
 is both obtainable and dated before a test cutoff is 2025-07-25, which can be used for the
 2025-11-01 cutoff only. Using it on earlier cutoffs would leak the future. So it is compared on
 that one year, on the repos it covers, and reported separately.
+
+## D8. Bus factor means half of recent human commits (2026-11-07)
+The fewest people who made at least half of the human commits on the default branch in the past
+365 days. It is a simple measure that anyone can check. Authors count, not committers, because web
+merges show GitHub as the committer. Commits are a thin proxy for work: they miss review, triage,
+releases and support. All of these measures are computed by one function that sees only rows
+dated up to t, so any measure can be recomputed at any past date.
+
+## D9. Graph comes from PyPI metadata, required dependencies only (2026-11-07)
+deps.dev looked incomplete in earlier tests and the 2026-02 archive is 64 GB and dated. PyPI's JSON
+API gives `requires_dist` for each package's latest release. Extras are dropped (a choice, not a
+need). Environment markers are kept (the dependency applies to someone). The graph stops at the
+top 5,000, so indirect counts are floors. Downloads behind a package overlap heavily, so the site
+shows the largest single dependent next to the sum and labels the sum as overlapping.
+
+## D10. What the site lets you sort and filter (2026-11-07)
+Tables sort by downloads or reach only, never by health or forecast. The package list has one
+"Show" menu, so "looks quiet" and "few active contributors" can't be combined. The home list is
+limited to active projects, ordered by what depends on them, and framed around where help reaches
+furthest. Owner type (person or organisation) is not shown or filterable per project. All of this
+is public information anyway, but the brief is clear that this site must not make a target list
+easier to build, so convenience loses.
+
+## D11. Labels describe commits only (2026-11-07)
+Active, Slowing down (human commits at least halved, year on year, with 10 or more the year
+before), Looks quiet (no human commit in 365 days), Archived by its owners, Unknown. Never
+"abandoned", "unsafe" or "at risk". Archive status is today's flag from ecosyste.ms, so it isn't
+used in the backtest, where it would leak the future.
+
+## D12. Keep the forecast cohort fixed from the 2022-11-09 snapshot (2026-11-07)
+The top 5,000 by downloads in the archive, by the same rule as D2. Test cutoffs are on or after
+the snapshot date: 2022-11-09, 2023-11-01, 2024-11-01, 2025-11-01. Earlier yearly cutoffs (Nov 1,
+2017 to 2021, plus 2022) are training rows only, and they carry some survivor bias because those
+projects were chosen for being popular in 2022. Training rows must have a finished outcome by the
+test date. Later test years use a cohort that is ageing: it can't include projects that became
+popular after 2022.

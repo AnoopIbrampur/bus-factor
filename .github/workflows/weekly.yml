@@ -21,6 +21,8 @@ jobs:
   publish:
     needs: harvest
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
     timeout-minutes: 90
     env:
       BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
