@@ -140,3 +140,18 @@ What this means:
   2023-11 also had no release. Quiet projects mostly stop releasing too.
 - **Moves show up as quiet.** Projects moved into a monorepo look quiet in their old repo. They
   are a small share (2 of 40).
+
+## Live pipeline checks (2026-11-07)
+
+- Weekly run 42417032362 (manual dispatch) succeeded end to end: harvest, scoring, freeze, deploy.
+  It froze 2,860 repos as week `2026-11-02` on the `predictions` branch.
+- Weekly run 42418042712 succeeded again. It reported the week as already frozen and left the file
+  unchanged: the branch still has a single freeze commit.
+- The site shows 4,999 packages, not 5,000: two names in the list normalise to the same PEP 503
+  name and are merged.
+- Browser check on the live site: desktop light, phone width (375px) dark, no sideways scroll,
+  no third-party requests (all resources from the site's own host), simulator search normalises
+  names, and the package filter counts match the data (820 quiet, 2,294 few active contributors,
+  328 unknown).
+- Not yet seen: a run started by the schedule itself. The first is due Monday 2026-11-09, and
+  GitHub often starts these late.

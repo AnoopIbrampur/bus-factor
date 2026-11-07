@@ -1,6 +1,6 @@
 # Case study: Internet Bus Factor
 
-![Home page of the live site](screenshot.png)
+![Home page of the live site](screenshot.jpg)
 
 **Live:** https://anoopibrampur.github.io/bus-factor/ · **Code:** https://github.com/AnoopIbrampur/bus-factor
 
