@@ -82,3 +82,70 @@ the snapshot date: 2022-11-09, 2023-11-01, 2024-11-01, 2025-11-01. Earlier yearl
 projects were chosen for being popular in 2022. Training rows must have a finished outcome by the
 test date. Later test years use a cohort that is ageing: it can't include projects that became
 popular after 2022.
+
+## D13. PRE-REGISTERED forecast test (2026-11-07, committed before any forecast result)
+Written after the outcome hand check in docs/data_audit.md, which looked at labels only. No model
+had been fitted or scored on real data when this was committed.
+
+**Unit and sample.** One row per repo per cutoff. Repos from the D12 cohort, eligible at a cutoff
+if they had at least one human commit in the 365 days before it.
+
+**Primary outcome (`quiet`).** No human commit on the default branch in the 365 days after the
+cutoff. Bots are excluded by the D4/people.py filter.
+
+**Secondary outcome (`quiet_strict`).** Quiet, and no PyPI release from any of the repo's cohort
+packages in the same window. Reported, never used for the pass rule.
+
+**Features.** The 16 git measures in `health.FEATURES`, computed by `health.measures_at` at each
+cutoff. Nothing else.
+
+**Candidates.**
+1. Logistic regression (L2, C=1, standardised, counts on log scale), the primary model.
+2. LightGBM, small and fixed (200 trees, 8 leaves, learning rate 0.03), the challenger.
+3. Baselines, each a one-feature logistic fit through the same pipeline: (a) days since last
+   human commit, (b) human commits in the past year.
+All are calibrated by Platt scaling on the latest training cutoff. Hyperparameters are the ones in
+`forecast.py` at this commit. There is no tuning.
+
+**Walk-forward.** Test cutoffs 2022-11-09, 2023-11-01, 2024-11-01, 2025-11-01. Training cutoffs are
+Nov 1 of 2017 to 2024, used only if cutoff + 365 days is on or before the test cutoff.
+
+**Primary metric.** Mean log loss over all test rows pooled across the four years.
+
+**Comparison.** Best baseline = the baseline with the lower pooled test log loss (the harder
+opponent, chosen after the fact on purpose). Difference = baseline log loss minus model log loss.
+95% CI from 2,000 bootstrap resamples of repos (clusters), seed 0, pairing each repo's rows across
+years.
+
+**Pass rule.** The logistic model passes if the CI's lower bound is above zero. LightGBM is
+adopted instead only if it beats the logistic model and the best baseline, both with CI lower
+bounds above zero. If nothing passes, the site publishes the best baseline's calibrated
+probabilities, and says plainly that the model didn't beat it.
+
+**Also reported, not deciding.** ROC-AUC, PR-AUC, Brier, share quiet in the top tenth, per-year
+results, calibration by tenths, the secondary outcome, and the sensitivity case where every
+unreadable cohort repo counts as quiet. OpenSSF criticality is compared by ROC-AUC on the
+2025-11-01 fold only, on repos its 2025-07-25 list covers, with lower score taken as more likely
+quiet (D7). It can't enter the log-loss rule because it has no history to calibrate on.
+
+**What a result would mean.** A pass means git history adds a little over "when was the last
+commit". It doesn't mean the model can tell finished from unattended projects (the hand check says
+nothing here can).
+
+## D14. Display bands for chances (2026-11-07, before any result)
+Lower chance: under 10%. Middle chance: 10% to under 30%. Higher chance: 30% or more. Fixed now so
+they can't be chosen to flatter the results. Colour always comes with the words.
+
+## D15. Live record scoring rules (2026-11-07, before the first freeze)
+- The weekly job scores every repo of today's top 5,000 that had a human commit in the past 365
+  days and isn't archived, with the model and baseline fitted once by the backtest job. The job
+  never refits.
+- The first run of each week (named by its Monday) writes `predictions/<Monday>.json.gz` to the
+  `predictions` branch. An existing file is never replaced. The job refuses any commit to that
+  branch other than a new file.
+- Each file is graded once 365 days after its freeze date have passed: quiet means no human commit
+  on the default branch in (freeze date, freeze date + 365 days], using the harvest at grading time.
+- Metric: mean log loss, for the published forecast and for the baseline frozen next to it.
+  Repos whose history can't be read at grading time are left out and counted.
+- The live record is reported apart from the backtest and never pooled with it.
+- Any change to these rules gets a dated note here and applies only to weeks frozen after it.

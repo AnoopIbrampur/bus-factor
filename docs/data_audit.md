@@ -89,3 +89,54 @@ Lowest package in the list: 640,909 monthly downloads.
 | h11 no human commit in a year | 562 days | ecosyste.ms list in the brief: no push in a year |
 | sortedcontainers same | 981 days | same |
 | urllib3 monthly downloads | 1,323,555,688 | pypistats: the same |
+
+## The 2022 cohort (2026-11-07)
+
+From `packages-2022-11-09`: 413,871 PyPI packages, 280,397 with a download count. The cohort
+is the top 5,000 by 2022 last-month downloads (lowest: 28,559).
+
+| What | Count |
+|---|---|
+| Cohort packages with no readable repo link in 2022 metadata | 839 |
+| Distinct cohort repos | 3,684 |
+| Hosts: GitHub / Bitbucket / GitLab / Codeberg / sourcehut | 4,096 / 38 / 23 / 3 / 1 |
+
+839 packages with no repo link is far more than today's 292. The 2022 metadata was thinner. These
+packages can't enter the backtest, and they aren't a random slice, so this is a stated bias.
+
+The harvest of 6,156 repos (today's list plus the cohort) read 6,031. 124 could not be cloned and
+1 was empty. Re-run on 2026-11-07 after the bot filter fix, so all rows use the same filter.
+
+## Outcome hand check (2026-11-07, before any forecast result)
+
+Question: does "active in the prior year, then no human commit for 12 months" separate finished
+software from stalled software? I drew 40 random repos labelled quiet at the 2023-11-01 cutoff
+(window to 2024-10-31) and looked at public signals git doesn't carry. The sample was printed to
+the terminal only. Counts:
+
+| What the record shows | Repos |
+|---|---|
+| Moved: work continued in another repo, often a monorepo | 2 |
+| Formally wound down: archived, or marked deprecated by its owners | 5 |
+| Pushes resumed after the window: a pause, not an end | 20 |
+| No push since; 10 or fewer open issues (looks finished or low demand) | 7 |
+| No push since; more than 10 open issues (looks unattended) | 6 |
+
+From git itself, the share of quiet repos that later had a human commit again:
+
+| Cutoff | Eligible | Quiet in next 12 months | Later had a human commit |
+|---|---|---|---|
+| 2022-11-09 | 2,670 | 360 (13.5%) | 171 (48%) |
+| 2023-11-01 | 2,522 | 413 (16.4%) | 160 (39%) |
+| 2024-11-01 | 2,280 | 372 (16.3%) | 126 (34%) |
+
+What this means:
+- **"Quiet for a year" is often a pause.** About 4 in 10 came back. The outcome measures a year
+  without a human commit, nothing more, and the site says that.
+- **It doesn't separate finished from unattended.** Roughly half of the sample that stayed quiet
+  looked finished. Open-issue counts help a little, but they are today's numbers, not
+  point-in-time ones, so they can't be used as features.
+- **The stricter outcome (also no PyPI release) changes little.** 378 of 413 quiet repos in
+  2023-11 also had no release. Quiet projects mostly stop releasing too.
+- **Moves show up as quiet.** Projects moved into a monorepo look quiet in their old repo. They
+  are a small share (2 of 40).
