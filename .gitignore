@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# Local working data. Raw API responses can contain names and emails, so they never go in git.
+data/
+cache/
+_site/
+*.parquet
+*.duckdb
+.env
+.DS_Store

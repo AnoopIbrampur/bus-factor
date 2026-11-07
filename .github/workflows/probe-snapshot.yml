@@ -1,0 +1,67 @@
+name: probe-snapshot
+# Phase 0 proof: can an ecosyste.ms archive be read on a free runner?
+# The file is a Postgres custom-format dump, so this lists its contents with
+# pg_restore before anything else is built on top of it.
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Snapshot date
+        default: "2022-11-09"
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - name: Free disk
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL /usr/local/.ghcup
+          df -h /
+      - name: Install newest Postgres client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client
+          ls /usr/lib/postgresql/
+          pg_restore --version
+      - name: Peek at the archive
+        env:
+          D: ${{ inputs.date }}
+        run: |
+          URL="https://ecosystems-data.s3.amazonaws.com/packages-$D.tar.gz"
+          set +o pipefail
+          curl -sSL -A internet-bus-factor-research "$URL" | tar -tzv | head -20
+          set -o pipefail
+      - name: Download
+        env:
+          D: ${{ inputs.date }}
+        run: |
+          mkdir -p "$HOME/snap"
+          time curl -sSL -A internet-bus-factor-research "https://ecosystems-data.s3.amazonaws.com/packages-$D.tar.gz" | tar -xz -C "$HOME/snap"
+          ls -la "$HOME/snap"
+          find "$HOME/snap" -type f | head
+          df -h /
+      - name: List the dump
+        run: |
+          F=$(find "$HOME/snap" -type f | head -1)
+          head -c 16 "$F" | xxd
+          PGR=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/pg_restore
+          "$PGR" -l "$F" | tee toc.txt | grep -E 'TABLE|Dump|dump|Archive' | head -80
+      - name: Show table columns and a row sample
+        run: |
+          F=$(find "$HOME/snap" -type f | head -1)
+          PGR=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/pg_restore
+          for T in registries packages; do
+            echo "=== $T"
+            set +o pipefail
+            "$PGR" -a -t "$T" -f - "$F" | grep -m1 -A2 '^COPY' | cut -c1-1500
+            set -o pipefail
+          done
+          "$PGR" -s -t packages -f - "$F" | grep -A45 'CREATE TABLE' | head -70
+          "$PGR" -s -t dependencies -f - "$F" | grep -A25 'CREATE TABLE' | head -40
+      - uses: actions/upload-artifact@v4
+        with:
+          name: toc
+          path: toc.txt
