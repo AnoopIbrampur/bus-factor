@@ -18,7 +18,8 @@ def test_spellings_collapse():
 
 
 def test_rejects_non_repos():
-    for raw in [None, "", "https://pypi.org/project/x", "https://github.com/onlyowner"]:
+    junk = ["http\uff1a//example.org", "https://pypi.org/project/x", "https://github.com/onlyowner"]
+    for raw in [None, "", *junk]:
         assert normalize_repo_url(raw) is None
 
 

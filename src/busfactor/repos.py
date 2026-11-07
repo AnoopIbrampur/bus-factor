@@ -22,7 +22,10 @@ def normalize_repo_url(url: str | None) -> str | None:
     url = re.sub(r"^(ssh|git)://(git@)?", "https://", url)
     if "://" not in url:
         url = "https://" + url
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+    except ValueError:  # free-text metadata can hold characters no URL may contain
+        return None
     host = parts.netloc.lower().split("@")[-1].removeprefix("www.")
     if host == "gitlab.com" or host.endswith(".gitlab.io"):
         host = "gitlab.com"
