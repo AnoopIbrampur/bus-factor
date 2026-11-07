@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Much of Python rests on very few people</h1>
+<p class="lede">Of the {{ s.n_packages|comma }} most downloaded PyPI packages, {{ s.n_known|comma }} have a git history we could read. In {{ s.n_bf1|comma }} of those, one person made at least half of the past year's human commits.</p>
+<dl class="facts">
+<div><dt>Packages where one person made half the commits</dt><dd>{{ s.pct_bf1 }}%</dd><div class="note">{{ s.n_bf1|comma }} of {{ s.n_known|comma }} with readable history</div></div>
+<div><dt>Packages with no human commit in a year</dt><dd>{{ s.pct_quiet }}%</dd><div class="note">{{ s.n_quiet|comma }} look quiet. Some are simply finished.</div></div>
+<div><dt>Packages we can't assess</dt><dd>{{ s.n_unknown|comma }}</dd><div class="note">Unknown, not healthy</div></div>
+</dl>
+<p>This site is for people deciding where help and funding should go. It shows what depends on a package and how many people keep it going. <a href="packages/">Look up a package</a> or <a href="simulator/">see what depends on it</a>.</p>
+
+<h2>Where help would reach furthest</h2>
+<p>Active packages with few active contributors, ordered by what sits behind them. Being on this list says only that a lot of software relies on a small group. Each project page says if it declares a funding link.</p>
+<div class="scroll"><table>
+<thead><tr><th>Package</th><th class="num">Packages that need it</th><th class="num">People making half the commits</th><th class="num">Active people, past year</th></tr></thead>
+<tbody>
+{% for p in help %}<tr><td><a href="p/{{ p.name }}/">{{ p.name }}</a></td><td class="num">{{ p.total_dependents|comma }}</td><td class="num">{{ p.bus_factor }}</td><td class="num">{{ p.active_humans }}</td></tr>
+{% endfor %}</tbody></table></div>
+
+<h2>Can quiet be forecast?</h2>
+<p>{{ result_summary }}</p>
+<p><a href="track-record/">See the track record</a>, which keeps live predictions apart from this past-years test.</p>
+
+<h2>Why this exists</h2>
+<p>Single points of failure have shaped real incidents: left-pad in 2016, event-stream in 2018, colors and faker in 2022, and the xz backdoor in 2024, where an attacker spent about two years earning a lone maintainer's trust. The lesson of those events is that overstretched volunteers need support.</p>
+<p>The <a href="https://github.com/ossf/criticality_score">OpenSSF Criticality Score</a>, <a href="https://securityscorecards.dev">OpenSSF Scorecard</a> and the <a href="https://www.linuxfoundation.org/research/census-ii-of-free-and-open-source-software-application-libraries">Harvard and Linux Foundation census studies</a> already map critical open source. What's new here is a dated forecast that gets graded in public, and a simulator anyone can use.</p>
+
+<h2>What this data can't show</h2>
+<ul>
+<li>Commits leave out reviews, triage, releases, support and paid work done elsewhere.</li>
+<li>Git can't tell finished software from software nobody is looking after.</li>
+<li>A package in a shared repo gets that whole repo's numbers.</li>
+</ul>
+<p><a href="method/">Read the method and limits</a>.</p>
+{% endblock %}

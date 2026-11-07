@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }} · Internet Bus Factor</title>
+<meta name="description" content="{{ description|default('Which widely used PyPI packages rest on very few people, what depends on them, and where help should go.') }}">
+<link rel="stylesheet" href="{{ root }}static/style.css">
+<link rel="icon" href="data:,">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="site"><div class="wrap">
+<a class="brand" href="{{ root }}">Internet Bus Factor</a>
+<nav class="main" aria-label="Main">
+{% for href, label, key in [('', 'Overview', 'home'), ('packages/', 'Packages', 'packages'), ('simulator/', 'Simulator', 'simulator'), ('track-record/', 'Track record', 'track'), ('method/', 'Method and limits', 'method')] %}<a href="{{ root }}{{ href }}"{% if active == key %} aria-current="page"{% endif %}>{{ label }}</a>
+{% endfor %}</nav>
+</div></header>
+<main id="content" class="wrap">
+{% block body %}{% endblock %}
+</main>
+<footer class="site"><div class="wrap">
+<p>Maintainers owe nobody free labour. Few contributors, or a quiet project, is no criticism of anyone. Finished software can be quiet and perfectly fine.</p>
+<p>Something wrong about your project? <a href="https://github.com/AnoopIbrampur/bus-factor/issues">Open a GitHub issue on this repo</a> to ask for a correction.</p>
+<p>Data updated {{ updated }}. Built on <a href="https://ecosyste.ms">ecosyste.ms</a> open data (CC-BY-SA 4.0), PyPI and public git history. Data here is shared under CC-BY-SA 4.0, code under MIT. <a href="https://github.com/AnoopIbrampur/bus-factor">Source</a>. A student portfolio project, not affiliated with any of these services.</p>
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Failure simulator</h1>
+<p class="lede">Pick a package to see what depends on it, directly and indirectly, and how many monthly downloads sit behind it.</p>
+<form class="tools" action="javascript:void(0)" id="pick">
+<label>Package name <input id="sim" list="names" autocomplete="off" spellcheck="false" required></label>
+<datalist id="names">{% for n in names %}<option value="{{ n }}">{% endfor %}</datalist>
+<button type="submit">Show dependents</button>
+</form>
+<p id="miss" class="small" role="status"></p>
+<p class="small">Each result has its own link you can share. Some examples: {% for n in examples %}<a href="{{ n }}/">{{ n }}</a>{{ ', ' if not loop.last else '.' }}{% endfor %}</p>
+<details><summary>What this can't show</summary>
+<p>The graph covers declared requirements between the top {{ n_packages|comma }} packages at their latest release, so real reach is larger. It leaves out optional extras, vendored copies and private code. "If this fails" doesn't mean everything behind it breaks: pinned versions keep working until someone needs a fix.</p>
+</details>
+<script>
+(function () {
+  var names = new Set(Array.prototype.map.call(document.querySelectorAll("#names option"), function (o) { return o.value; }));
+  document.getElementById("pick").addEventListener("submit", function () {
+    var v = document.getElementById("sim").value.trim().toLowerCase().replace(/[-_.]+/g, "-");
+    if (names.has(v)) { location.href = v + "/"; }
+    else { document.getElementById("miss").textContent = "That name isn't in the top {{ n_packages|comma }} packages."; }
+  });
+})();
+</script>
+{% endblock %}

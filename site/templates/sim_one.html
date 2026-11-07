@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block body %}
+<p class="small"><a href="../">Simulator</a></p>
+<h1>If {{ p.name }} stopped</h1>
+{% if p.total_dependents %}
+<p class="lede">{{ p.n_direct|comma }} tracked {{ 'package needs' if p.n_direct == 1 else 'packages need' }} it directly and {{ p.n_indirect|comma }} more through other packages.</p>
+<dl class="facts">
+<div><dt>Direct dependents</dt><dd>{{ p.n_direct|comma }}</dd></div>
+<div><dt>Indirect dependents</dt><dd>{{ p.n_indirect|comma }}</dd></div>
+<div><dt>Busiest single dependent</dt><dd>{{ p.downloads_max|short }}</dd><div class="note">monthly downloads</div></div>
+<div><dt>All dependents added up</dt><dd>{{ p.downloads_sum|short }}</dd><div class="note">monthly downloads, overlapping: one install can count many times</div></div>
+</dl>
+{% if p.direct %}<h2>Direct</h2>
+<p class="small muted">Most downloaded first{% if p.direct_more %}, showing {{ p.direct|length }} of {{ p.n_direct|comma }}{% endif %}.</p>
+<ul>{% for n in p.direct %}<li><a href="../{{ n }}/">{{ n }}</a></li>{% endfor %}</ul>{% endif %}
+{% if p.indirect %}<details><summary>Indirect{% if p.indirect_more %}, showing {{ p.indirect|length }} of {{ p.n_indirect|comma }}{% endif %}</summary>
+<ul>{% for n in p.indirect %}<li><a href="../{{ n }}/">{{ n }}</a></li>{% endfor %}</ul></details>{% endif %}
+{% else %}
+<p class="lede">No other package in the top {{ n_packages|comma }} declares a requirement on it. On all of PyPI, ecosyste.ms counts {{ p.dependent_packages|comma }} direct dependents.</p>
+{% endif %}
+<p><a href="../../p/{{ p.name }}/">Health of {{ p.name }}</a></p>
+<p class="small muted">Stopping doesn't mean breaking. Published versions keep installing. The risk is that nobody is there when a fix is needed.</p>
+{% endblock %}

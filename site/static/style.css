@@ -1,0 +1,124 @@
+/* Paper and ink, with one colour scale that only ever carries meaning.
+   Spacing uses the 4px scale and type uses the fixed scale below. tests/test_site.py enforces both. */
+@font-face { font-family: "Spectral"; src: url("fonts/spectral-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Spectral"; src: url("fonts/spectral-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Atkinson"; src: url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+:root {
+  color-scheme: light dark;
+  --paper: #f7f4ec;
+  --ink: #1f1d1a;
+  --muted: #5b564d;
+  --rule: #d5cfc1;
+  --link: #1f1d1a;
+  --scale-1: #6f7a5a;
+  --scale-2: #a9771f;
+  --scale-3: #a8431f;
+  --scale-unknown: #6d675d;
+  --t-sm: 14px; --t-base: 16px; --t-md: 18px; --t-lg: 22px; --t-xl: 28px; --t-2xl: 36px; --t-3xl: 48px;
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-6: 24px; --s-8: 32px; --s-12: 48px; --s-16: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #191816;
+    --ink: #ece8df;
+    --muted: #aaa498;
+    --rule: #3a372f;
+    --link: #ece8df;
+    --scale-1: #a3b088;
+    --scale-2: #d9a94e;
+    --scale-3: #e58a63;
+    --scale-unknown: #a59f93;
+  }
+}
+@media (prefers-contrast: more) {
+  :root { --muted: var(--ink); --rule: var(--ink); }
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--t-base)/1.55 "Atkinson", system-ui, sans-serif;
+  overflow-wrap: anywhere;
+}
+h1, h2, h3 { font-family: "Spectral", Georgia, serif; font-weight: 600; line-height: 1.2; margin: 0; }
+h1 { font-size: var(--t-3xl); }
+h2 { font-size: var(--t-xl); margin-top: var(--s-12); }
+h3 { font-size: var(--t-lg); font-weight: 500; margin-top: var(--s-8); }
+p { margin: var(--s-3) 0; max-width: 68ch; }
+a { color: var(--link); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+ul { padding-left: var(--s-6); max-width: 68ch; }
+li { margin: var(--s-1) 0; }
+
+.skip { position: absolute; left: var(--s-2); top: -64px; background: var(--ink); color: var(--paper); padding: var(--s-2) var(--s-3); }
+.skip:focus { top: var(--s-2); }
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 var(--s-4); }
+header.site { border-bottom: 1px solid var(--rule); padding: var(--s-3) 0; }
+header.site .wrap { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); align-items: baseline; justify-content: space-between; }
+.brand { font: 600 var(--t-md)/1.2 "Spectral", Georgia, serif; text-decoration: none; }
+nav.main { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); font-size: var(--t-sm); }
+nav.main a[aria-current="page"] { font-weight: 700; }
+main { padding: var(--s-8) 0 var(--s-16); }
+footer.site { border-top: 1px solid var(--rule); padding: var(--s-6) 0 var(--s-12); font-size: var(--t-sm); color: var(--muted); }
+footer.site p { margin: var(--s-2) 0; }
+
+.lede { font-size: var(--t-md); max-width: 60ch; margin-top: var(--s-4); }
+.muted { color: var(--muted); }
+.small { font-size: var(--t-sm); }
+
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-6) var(--s-8); margin: var(--s-8) 0; padding: 0; }
+.facts div { border-top: 1px solid var(--rule); padding-top: var(--s-2); }
+.facts dt { font-size: var(--t-sm); color: var(--muted); }
+.facts dd { margin: 0; font: 500 var(--t-2xl)/1.2 "Spectral", Georgia, serif; }
+.facts dd.text { font-size: var(--t-lg); }
+.facts .note { font: 400 var(--t-sm)/1.4 "Atkinson", system-ui, sans-serif; color: var(--muted); }
+
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 700; border-bottom: 1px solid var(--ink); padding: var(--s-2) var(--s-3) var(--s-2) 0; vertical-align: bottom; }
+td { border-bottom: 1px solid var(--rule); padding: var(--s-2) var(--s-3) var(--s-2) 0; vertical-align: top; }
+td.num, th.num { text-align: right; padding-right: var(--s-4); }
+caption { text-align: left; color: var(--muted); padding-bottom: var(--s-2); }
+
+details { border-top: 1px solid var(--rule); padding: var(--s-3) 0; max-width: 72ch; }
+details:last-of-type { border-bottom: 1px solid var(--rule); }
+summary { cursor: pointer; font-weight: 700; }
+
+.mark { display: inline-block; width: 12px; height: 12px; margin-right: var(--s-1); vertical-align: -1px; background: var(--c); }
+.c1 { --c: var(--scale-1); }
+.c2 { --c: var(--scale-2); }
+.c3 { --c: var(--scale-3); }
+.c0 { --c: var(--scale-unknown); }
+.nowrap { white-space: nowrap; }
+
+form.tools { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-4); align-items: end; margin: var(--s-6) 0; }
+form.tools label { display: flex; flex-direction: column; gap: var(--s-1); font-size: var(--t-sm); color: var(--muted); }
+input, select, button { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--muted); border-radius: 0; padding: var(--s-2) var(--s-3); max-width: 100%; }
+button { cursor: pointer; font-weight: 700; }
+select option { background: var(--paper); color: var(--ink); }
+
+.notice { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: var(--s-3) 0; margin: var(--s-6) 0; max-width: 68ch; }
+figure { margin: var(--s-6) 0; max-width: 560px; }
+figcaption { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
+svg { display: block; width: 100%; height: auto; }
+svg text { fill: var(--muted); font: 400 12px "Atkinson", system-ui, sans-serif; }
+svg .axis { stroke: var(--rule); stroke-width: 1; fill: none; }
+svg .ink { stroke: var(--ink); stroke-width: 1; fill: none; stroke-dasharray: 4 4; }
+svg .dot { fill: var(--ink); }
+
+@media (max-width: 600px) {
+  h1 { font-size: var(--t-2xl); }
+  h2 { font-size: var(--t-lg); }
+  .facts dd { font-size: var(--t-xl); }
+  .hide-sm { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none; } }
+@media (prefers-reduced-transparency: reduce) { * { opacity: 1; } }
+@media (forced-colors: active) { .mark { forced-color-adjust: none; border: 1px solid CanvasText; } }
