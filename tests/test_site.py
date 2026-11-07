@@ -35,6 +35,9 @@ def test_tokens_stay_on_scale():
 def test_every_font_size_comes_from_the_scale():
     for value in re.findall(r"font-size:\s*([^;]+);", CSS):
         assert value.strip().startswith("var(--t-"), value
+    # The font shorthand carries a size too.
+    for value in re.findall(r"(?<![-\w])font:\s*([^;]+);", CSS):
+        assert not re.search(r"\d+px", value), value
 
 
 def test_no_third_party_requests():

@@ -111,7 +111,7 @@ select option { background: var(--paper); color: var(--ink); }
 figure { margin: var(--s-6) 0; max-width: 360px; }
 figcaption { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
 svg { display: block; width: 100%; height: auto; }
-svg text { fill: var(--muted); font: 400 12px "Atkinson", system-ui, sans-serif; }
+svg text { fill: var(--muted); font-family: "Atkinson", system-ui, sans-serif; font-size: var(--t-sm); }
 svg .axis { stroke: var(--rule); stroke-width: 1; fill: none; }
 svg .ink { stroke: var(--ink); stroke-width: 1; fill: none; stroke-dasharray: 4 4; }
 svg .dot { fill: var(--ink); }

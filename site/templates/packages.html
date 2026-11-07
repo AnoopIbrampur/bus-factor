@@ -20,6 +20,13 @@
 <tbody>
 {% for p in pkgs %}<tr data-n="{{ p.name }}" data-s="{{ p.state }}" data-f="{{ 1 if p.few_people else 0 }}"><td><a href="../p/{{ p.name }}/">{{ p.name }}</a></td><td class="num">{{ p.downloads|short }}</td><td class="num hide-sm">{{ p.total_dependents|comma }}</td><td class="num">{% if p.bus_factor is none %}Unknown{% elif p.bus_factor == 0 %}None this year{% else %}{{ p.bus_factor }}{% endif %}</td><td class="nowrap"><span class="mark c{{ p.state_class }}"></span>{{ p.state_label }}</td></tr>
 {% endfor %}</tbody></table></div>
+<details><summary>What this list can't show</summary>
+<ul>
+<li>Commits leave out reviews, triage, support and releases, so "few active contributors" counts commit authors only.</li>
+<li>"Looks quiet" can mean finished. About 4 in 10 projects that went a year without a human commit later had one again.</li>
+<li>Packages that share a repo show that whole repo's numbers. Unknown means we couldn't read a repo, not that it's fine.</li>
+</ul>
+</details>
 <details><summary>Why you can't sort or combine these filters</summary>
 <p>You can't sort by health or forecast, or combine "looks quiet" with "few active contributors". The xz attacker looked for that kind of project, and this site shouldn't make such a list easier to build. The list is ordered by downloads.</p>
 </details>

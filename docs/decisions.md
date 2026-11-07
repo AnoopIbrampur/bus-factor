@@ -160,5 +160,27 @@ Bug, found after the result: the code that saves the live model had no LightGBM 
 saved a one-feature model under LightGBM's name. No rule, feature, hyperparameter or number in
 backtest.json changed. The fix adds a stored form of LightGBM and per-project reasons from its own
 feature contributions (TreeSHAP), and adds calibration tables for every candidate to the report.
-The backtest was then re-run unchanged to produce the corrected model file. Its numbers have to
-match the first run, and the check is recorded in the model card.
+The backtest was then re-run unchanged to produce the corrected model file, and the two runs were
+compared.
+
+Addendum (2026-11-07): logistic and baseline numbers matched exactly. LightGBM did not: it moved in
+the fourth decimal, because multithreaded LightGBM isn't bit-for-bit reproducible. Every pass
+decision held. Both runs are in docs/model_card.md.
+
+## D17. Privacy fixes and a disclosed point-in-time gap, found in final review (2026-11-07)
+1. **Public files that could rebuild a target list.** `site_packages.parquet`, the per-commit
+   rows, the backtest panel and the backtest predictions were plain release assets. Combined, any
+   of them can be sorted into the "few people and quiet" list D10 keeps off the site. All are now
+   encrypted (`.enc`), and the plain copies were deleted. What stays public on purpose: the frozen
+   weekly forecasts on the `predictions` branch. A public record has to be checkable, so anyone
+   can sort it. The hash order only slows that down.
+2. **Identity merging sees the whole history.** `aggregate()` merges author identities, and
+   checks for rewritten histories, using the full 2026 clone. A commit made after a cutoff can
+   therefore link two identities from before it. That makes past headcounts slightly lower than
+   they would have looked at the time. The effect is likely small (it needs one person to change
+   email or name and later commit under both), but it is a real point-in-time gap. The tests
+   start from aggregated rows, so they can't catch it. D13 is not changed. This is disclosed in
+   the model card.
+3. **Grading as published.** `grade()` now grades only repos read successfully on or after the
+   due date, as D15 says. Before this fix, a deleted repo would have kept its old rows and been
+   graded as quiet. No week was graded before the fix.

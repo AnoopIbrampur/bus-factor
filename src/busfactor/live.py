@@ -171,8 +171,14 @@ def read_frozen(folder: Path) -> list[dict]:
     return out
 
 
-def grade(frozen: list[dict], rows: pd.DataFrame, today: date) -> dict:
-    """Grade every prediction whose 12 months are over, per the published rules."""
+def grade(
+    frozen: list[dict], rows: pd.DataFrame, today: date, status: pd.DataFrame | None = None
+) -> dict:
+    """Grade every prediction whose 12 months are over, per the published rules (D15).
+
+    Only repos read successfully on or after the due date are graded. The harvest keeps old rows
+    when a refetch fails, so without this check a deleted repo would wrongly count as quiet.
+    """
     weeks, due = [], []
     for rec in frozen:
         start = date.fromisoformat(rec["frozen_on"])
@@ -187,7 +193,11 @@ def grade(frozen: list[dict], rows: pd.DataFrame, today: date) -> dict:
             & (rows["day"] <= day_number(end))
         ]
         seen = set(humans["repo_key"])
-        known = set(rows["repo_key"])
+        if status is None:
+            known = set(rows["repo_key"])
+        else:
+            ok = status[(status["status"] == "ok") & (status["fetched_at"] >= rec["due_on"])]
+            known = set(ok["repo_key"])
         preds = [p for p in rec["predictions"] if p["repo_key"] in known]
         y = np.array([0.0 if p["repo_key"] in seen else 1.0 for p in preds])
         p = np.array([q["prob"] for q in preds])
@@ -198,6 +208,7 @@ def grade(frozen: list[dict], rows: pd.DataFrame, today: date) -> dict:
                 "n": len(rec["predictions"]),
                 "graded": True,
                 "n_graded": len(preds),
+                "n_unreadable": len(rec["predictions"]) - len(preds),
                 "quiet": int(y.sum()),
                 "log_loss": float(log_loss_each(y, p).mean()) if len(y) else None,
                 "baseline_log_loss": float(log_loss_each(y, b).mean()) if len(y) else None,

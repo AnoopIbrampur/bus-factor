@@ -114,3 +114,21 @@ def test_reasons_are_only_upward_and_short():
     m, x = fitted()
     out = reasons(model_to_json(m, "logistic"), x.head(5))
     assert len(out) == 5 and all(len(r) <= 3 for r in out)
+
+
+def test_unreadable_repos_are_left_out_not_called_quiet(tmp_path):
+    write_frozen(payload(), tmp_path)
+    t = day_number(TODAY)
+    rows = pd.DataFrame(
+        [("aa", t + 10, 0, 1, 0), ("bb", t - 5, 0, 1, 0)],
+        columns=["repo_key", "day", "person", "n", "m"],
+    )
+    status = pd.DataFrame(
+        {
+            "repo_key": ["aa", "bb"],
+            "status": ["ok", "missing"],
+            "fetched_at": ["2027-12-01", "2027-12-01"],
+        }
+    )
+    w = grade(read_frozen(tmp_path), rows, date(2027, 12, 2), status)["weeks"][0]
+    assert w["n_graded"] == 1 and w["quiet"] == 0 and w["n_unreadable"] == 2

@@ -75,6 +75,8 @@ decision is the same in both runs. The live model is the one from the second run
 - **Finished vs unattended:** not separable from git. See the hand check.
 - **Git dates are not push dates,** so a few commits look earlier than they became public.
 - **Archive status and open issues** are today's values, so they're kept out of the features.
+- **Identity merging uses the full history** (D17). A later commit can link two earlier
+  identities, so past headcounts can be slightly lower than they looked at the time.
 - **Live record:** no graded weeks yet. The first frozen week (named 2026-11-02, frozen
   2026-11-07) is due for grading on 2027-11-07. Backtest skill doesn't guarantee live skill.
 

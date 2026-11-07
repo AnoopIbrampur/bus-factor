@@ -45,7 +45,7 @@ mixes a person's commits with scripted ones counts as a person.
 
 ## The 2022 archive restore: proven on a runner (2026-11-07)
 
-Run 42411583098 restored `packages-2022-11-09.tar.gz` on a free GitHub runner.
+Snapshot run 42413868196 restored `packages-2022-11-09.tar.gz` on a free GitHub runner and printed counts only. Two earlier probe runs were deleted, because one printed two raw rows of the dump to its public log (found in the final review, 2026-11-07).
 
 - Download and unpack took about 12 minutes. The runner had 101 GB free after clearing unused
   toolchains, far more than the 14 GB assumed.

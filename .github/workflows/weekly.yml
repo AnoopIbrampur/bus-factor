@@ -43,7 +43,8 @@ jobs:
           scripts/state.sh pull models.json data/models.json
           scripts/state.sh pull backtest.json data/backtest.json
           for S in 0 1 2 3 4 5; do
-            scripts/state.sh pull "rows-$S.parquet" "data/rows-$S.parquet"
+            scripts/state.sh pull "rows-$S.parquet.enc" "data/rows-$S.parquet"
+            scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"
           done
       - name: Score, freeze and grade
         run: uv run busfactor weekly --predictions record/predictions
@@ -63,9 +64,10 @@ jobs:
           fi
       - name: Save site inputs
         run: |
-          for F in site_packages.parquet simulator.parquet site_context.json; do
+          for F in simulator.parquet site_context.json; do
             scripts/state.sh push "data/$F" "$F"
           done
+          scripts/state.sh push data/site_packages.parquet site_packages.parquet.enc
       - name: Build the site
         run: uv run busfactor site --out _site
       - uses: actions/upload-pages-artifact@v3

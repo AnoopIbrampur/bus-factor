@@ -20,13 +20,15 @@ jobs:
       name: github-pages
     env:
       GH_TOKEN: ${{ github.token }}
+      BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv sync --frozen
       - name: Pull site inputs
         run: |
-          for F in site_packages.parquet simulator.parquet site_context.json; do
+          scripts/state.sh pull site_packages.parquet.enc data/site_packages.parquet
+          for F in simulator.parquet site_context.json; do
             scripts/state.sh pull "$F" "data/$F"
           done
           test -f data/site_packages.parquet

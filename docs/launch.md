@@ -17,8 +17,8 @@
 > Much of Python rests on very few people. I wanted to measure that, and to test whether you can
 > forecast which projects go quiet.
 >
-> Internet Bus Factor maps the 5,000 most downloaded PyPI packages. For half of them, one person
-> made at least half of last year's commits. A simulator shows what depends on each package.
+> Internet Bus Factor maps the 5,000 most downloaded PyPI packages. In half of those with readable
+> history, one person made at least half of last year's commits. A simulator shows what depends on each package.
 >
 > The forecast was tested on four past years using a 2022 snapshot, to avoid only studying
 > survivors. The pass rule was committed to git before I looked at any result. It passed:

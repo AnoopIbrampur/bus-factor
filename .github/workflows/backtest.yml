@@ -20,7 +20,7 @@ jobs:
           scripts/state.sh pull cohort.parquet data/cohort.parquet
           scripts/state.sh pull release_days.parquet data/release_days.parquet
           for S in 0 1 2 3 4 5; do
-            scripts/state.sh pull "rows-$S.parquet" "data/rows-$S.parquet"
+            scripts/state.sh pull "rows-$S.parquet.enc" "data/rows-$S.parquet"
             scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"
           done
           curl -sSL -A internet-bus-factor-research -o crit.csv.gz \
@@ -32,5 +32,5 @@ jobs:
         run: |
           scripts/state.sh push data/backtest.json backtest.json
           scripts/state.sh push data/models.json models.json
-          scripts/state.sh push data/panel.parquet panel.parquet
-          scripts/state.sh push data/backtest_preds.parquet backtest_preds.parquet
+          scripts/state.sh push data/panel.parquet panel.parquet.enc
+          scripts/state.sh push data/backtest_preds.parquet backtest_preds.parquet.enc

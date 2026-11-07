@@ -51,8 +51,10 @@ people.
 ## Safety and privacy
 No names, emails or usernames are stored or published. Emails are hashed in memory with a
 throwaway salt and replaced by a per-repo number. There are no repo links, because personal-account
-URLs contain usernames. Nothing can be sorted by health or forecast, and "looks quiet" can't be
-combined with "few active contributors". Maintainers owe nobody free labour. To ask for a
+URLs contain usernames. On the site, nothing can be sorted by health or forecast, and "looks
+quiet" can't be combined with "few active contributors". Working data in releases is encrypted.
+The frozen weekly forecasts are public, so anyone can sort them. A record that can't be checked
+would be worthless. Maintainers owe nobody free labour. To ask for a
 correction, [open an issue](https://github.com/AnoopIbrampur/bus-factor/issues).
 
 ## Related work

@@ -57,9 +57,9 @@ jobs:
           DAYS: ${{ inputs.fresh_days }}
         run: |
           scripts/state.sh pull targets.parquet.enc data/private/targets.parquet
-          scripts/state.sh pull "rows-$S.parquet" "data/rows-$S.parquet"
+          scripts/state.sh pull "rows-$S.parquet.enc" "data/rows-$S.parquet"
           scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"
           uv run busfactor harvest --shard "$S" --of 6 --rows "data/rows-$S.parquet" \
             --status "data/status-$S.parquet" --fresh-days "$DAYS" --budget 18000
-          scripts/state.sh push "data/rows-$S.parquet" "rows-$S.parquet"
+          scripts/state.sh push "data/rows-$S.parquet" "rows-$S.parquet.enc"
           scripts/state.sh push "data/status-$S.parquet" "status-$S.parquet"

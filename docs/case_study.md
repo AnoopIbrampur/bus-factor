@@ -40,7 +40,8 @@ reproduced the result, and both runs are in the model card.
 **Privacy and safety.** Emails are hashed in memory with a throwaway salt and replaced by a
 per-repo number. No names, usernames or repo links are published, because a personal repo URL
 contains a username. The site has no ranking by weakness and no way to combine "looks quiet" with
-"few active contributors", and frozen forecasts are sorted by hash. That's the profile the xz
+"few active contributors", and working data is encrypted. The frozen forecasts stay public so the
+record can be checked. That's the profile the xz
 attacker searched for, and the site shouldn't make it easier to find.
 
 **Running on free infrastructure.** All heavy work runs on GitHub Actions: 6 resumable shards
@@ -58,8 +59,8 @@ weekly schedule.
 - **The humbling part:** about 4 in 10 projects that went a year without a human commit later had
   one again. Half of a hand-checked sample that stayed quiet looked finished. "Quiet" is not
   "abandoned", and the site says so everywhere.
-- **Compared with OpenSSF Criticality Score** (one year, 1,474 repos), the model ranked quiet
-  projects better (ROC-AUC 0.85 against 0.72). Criticality measures importance, not quiet, so
+- **Compared with OpenSSF Criticality Score** (one year, 1,474 repos), the logistic model ranked
+  quiet projects better (ROC-AUC 0.85 against 0.72). Criticality measures importance, not quiet, so
   the two answer different questions.
 
 ## What I'd do next
@@ -69,5 +70,5 @@ weekly schedule.
 - Extend to npm once the PyPI record is stable.
 
 ## Stack
-Python 3.12, uv, pandas, DuckDB and Parquet, scikit-learn, LightGBM, httpx, Jinja2, pytest, ruff,
+Python 3.12, uv, pandas, Parquet, scikit-learn, LightGBM, httpx, Jinja2, pytest, ruff,
 GitHub Actions and Pages. Fonts are self-hosted, and the site uses about 30 lines of JavaScript.

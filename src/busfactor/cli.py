@@ -179,7 +179,8 @@ def cmd_weekly(args) -> None:
     )
     written = live.write_frozen(payload, folder)
     print("froze" if written else "already frozen", payload["week"], len(eligible))
-    track = live.grade(live.read_frozen(folder), rows, today)
+    status = build.load_status(DATA_DIR)
+    track = live.grade(live.read_frozen(folder), rows, today, status)
 
     forecast_cols = eligible[["repo_key", "prob", "reasons"]]
     table, sim = build.assemble(universe_df, requires, rows, today, forecast_cols)
