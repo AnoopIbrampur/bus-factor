@@ -26,9 +26,9 @@ def comma(v) -> str:
 
 def short(v) -> str:
     v = float(v)
-    for limit, suffix in ((1e9, " billion"), (1e6, " million")):
+    for limit, suffix in ((1e9, " billion"), (1e6, " million"), (1e3, " thousand")):
         if v >= limit:
-            return f"{v / limit:.1f}{suffix}"
+            return f"{v / limit:.1f}{suffix}" if limit > 1e3 else f"{v / limit:.0f}{suffix}"
     return f"{int(v):,}"
 
 

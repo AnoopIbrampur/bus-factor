@@ -1,0 +1,41 @@
+name: site
+# Rebuild and deploy the site from the latest saved state, without refreshing data.
+# Used after design or wording changes. The weekly job is the only one that changes data.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["site/**", "src/busfactor/site.py", "src/busfactor/narrative.py"]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Pull site inputs
+        run: |
+          for F in site_packages.parquet simulator.parquet site_context.json; do
+            scripts/state.sh pull "$F" "data/$F"
+          done
+          test -f data/site_packages.parquet
+      - run: uv run busfactor site --out _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: d1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - if: steps.d1.outcome == 'failure'
+        uses: actions/deploy-pages@v4

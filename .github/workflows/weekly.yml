@@ -61,6 +61,11 @@ jobs:
             git commit -m "Freeze predictions for the week"
             git push origin predictions
           fi
+      - name: Save site inputs
+        run: |
+          for F in site_packages.parquet simulator.parquet site_context.json; do
+            scripts/state.sh push "data/$F" "$F"
+          done
       - name: Build the site
         run: uv run busfactor site --out _site
       - uses: actions/upload-pages-artifact@v3

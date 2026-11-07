@@ -10,9 +10,9 @@
 <p>This site is for people deciding where help and funding should go. It shows what depends on a package and how many people keep it going. <a href="packages/">Look up a package</a> or <a href="simulator/">see what depends on it</a>.</p>
 
 <h2>Where help would reach furthest</h2>
-<p>Active packages with few active contributors, ordered by what sits behind them. Being on this list says only that a lot of software relies on a small group. Each project page says if it declares a funding link.</p>
+<p>Active packages where one person made at least half of the past year's human commits, or where two or fewer people committed. Ordered by how many tracked packages rely on them, directly or indirectly. Being on this list says only that a lot of software relies on a small group. Each project page says if it declares a funding link.</p>
 <div class="scroll"><table>
-<thead><tr><th>Package</th><th class="num">Packages that need it</th><th class="num">People making half the commits</th><th class="num">Active people, past year</th></tr></thead>
+<thead><tr><th>Package</th><th class="num">Packages that rely on it</th><th class="num">People making half the commits</th><th class="num">Active people, past year</th></tr></thead>
 <tbody>
 {% for p in help %}<tr><td><a href="p/{{ p.name }}/">{{ p.name }}</a></td><td class="num">{{ p.total_dependents|comma }}</td><td class="num">{{ p.bus_factor }}</td><td class="num">{{ p.active_humans }}</td></tr>
 {% endfor %}</tbody></table></div>

@@ -16,7 +16,7 @@
 <ul>{% for r in p.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
 <p class="small muted">These are statistical associations across many projects. They are not causes, and they say nothing about the people involved.</p>{% endif %}
 {% if p.has_history %}<h2>Health, past year</h2>
-<div class="scroll"><table>
+<div class="scroll"><table class="kv">
 <tbody>
 <tr><td>Active people</td><td class="num">{{ p.active_humans }}</td></tr>
 <tr><td>People with 4 or more commits</td><td class="num">{{ p.regular_humans }}</td></tr>

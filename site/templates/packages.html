@@ -18,7 +18,7 @@
 <div class="scroll"><table id="t">
 <thead><tr><th>Package</th><th class="num">Monthly downloads</th><th class="num hide-sm">Packages that need it</th><th class="num">People making half the commits</th><th>Activity</th></tr></thead>
 <tbody>
-{% for p in pkgs %}<tr data-n="{{ p.name }}" data-s="{{ p.state }}" data-f="{{ 1 if p.few_people else 0 }}"><td><a href="../p/{{ p.name }}/">{{ p.name }}</a></td><td class="num">{{ p.downloads|comma }}</td><td class="num hide-sm">{{ p.total_dependents|comma }}</td><td class="num">{% if p.bus_factor is none %}Unknown{% elif p.bus_factor == 0 %}None this year{% else %}{{ p.bus_factor }}{% endif %}</td><td class="nowrap"><span class="mark c{{ p.state_class }}"></span>{{ p.state_label }}</td></tr>
+{% for p in pkgs %}<tr data-n="{{ p.name }}" data-s="{{ p.state }}" data-f="{{ 1 if p.few_people else 0 }}"><td><a href="../p/{{ p.name }}/">{{ p.name }}</a></td><td class="num">{{ p.downloads|short }}</td><td class="num hide-sm">{{ p.total_dependents|comma }}</td><td class="num">{% if p.bus_factor is none %}Unknown{% elif p.bus_factor == 0 %}None this year{% else %}{{ p.bus_factor }}{% endif %}</td><td class="nowrap"><span class="mark c{{ p.state_class }}"></span>{{ p.state_label }}</td></tr>
 {% endfor %}</tbody></table></div>
 <details><summary>Why you can't sort or combine these filters</summary>
 <p>You can't sort by health or forecast, or combine "looks quiet" with "few active contributors". The xz attacker looked for that kind of project, and this site shouldn't make such a list easier to build. The list is ordered by downloads.</p>

@@ -74,17 +74,20 @@ footer.site p { margin: var(--s-2) 0; }
 .small { font-size: var(--t-sm); }
 
 .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-6) var(--s-8); margin: var(--s-8) 0; padding: 0; }
-.facts div { border-top: 1px solid var(--rule); padding-top: var(--s-2); }
+.facts > div { border-top: 1px solid var(--rule); padding-top: var(--s-2); }
 .facts dt { font-size: var(--t-sm); color: var(--muted); }
 .facts dd { margin: 0; font: 500 var(--t-2xl)/1.2 "Spectral", Georgia, serif; }
 .facts dd.text { font-size: var(--t-lg); }
 .facts .note { font: 400 var(--t-sm)/1.4 "Atkinson", system-ui, sans-serif; color: var(--muted); }
 
 .scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+table { overflow-wrap: normal; border-collapse: collapse; width: 100%; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 th { text-align: left; font-weight: 700; border-bottom: 1px solid var(--ink); padding: var(--s-2) var(--s-3) var(--s-2) 0; vertical-align: bottom; }
 td { border-bottom: 1px solid var(--rule); padding: var(--s-2) var(--s-3) var(--s-2) 0; vertical-align: top; }
 td.num, th.num { text-align: right; padding-right: var(--s-4); }
+td.num { white-space: nowrap; }
+td a { overflow-wrap: anywhere; }
+table.kv { max-width: 480px; }
 caption { text-align: left; color: var(--muted); padding-bottom: var(--s-2); }
 
 details { border-top: 1px solid var(--rule); padding: var(--s-3) 0; max-width: 72ch; }
@@ -105,7 +108,7 @@ button { cursor: pointer; font-weight: 700; }
 select option { background: var(--paper); color: var(--ink); }
 
 .notice { border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding: var(--s-3) 0; margin: var(--s-6) 0; max-width: 68ch; }
-figure { margin: var(--s-6) 0; max-width: 560px; }
+figure { margin: var(--s-6) 0; max-width: 360px; }
 figcaption { font-size: var(--t-sm); color: var(--muted); margin-top: var(--s-2); }
 svg { display: block; width: 100%; height: auto; }
 svg text { fill: var(--muted); font: 400 12px "Atkinson", system-ui, sans-serif; }

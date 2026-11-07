@@ -30,7 +30,8 @@ def calibration_svg(table: list[dict]) -> str:
     ticks = "".join(
         f'<text x="{x(t):.1f}" y="{size - pad + 16}" text-anchor="middle">{t:.0%}</text>'
         f'<text x="{pad - 6}" y="{y(t) + 4:.1f}" text-anchor="end">{t:.0%}</text>'
-        for t in (top * 0.0, round(top / 2, 2), round(top * 0.95, 2))
+        for t in (0.0, 0.25, 0.5)
+        if t <= top
     )
     return (
         f'<svg viewBox="0 0 {size} {size}" role="img" aria-label="Calibration chart: '
@@ -44,8 +45,14 @@ def calibration_svg(table: list[dict]) -> str:
     )
 
 
+AUDIT_LINE = (
+    "about 4 in 10 projects that went a year without a human commit later had one again, and "
+    "about half of those that stayed quiet looked finished rather than unattended."
+)
+
+
 def context(
-    backtest: dict, track: dict, today: date, model_name: str, audit_line: str = ""
+    backtest: dict, track: dict, today: date, model_name: str, audit_line: str = AUDIT_LINE
 ) -> dict:
     """Everything the templates need beyond the package table."""
     published = model_name if model_name in ("logistic", "lightgbm") else backtest["best_baseline"]
