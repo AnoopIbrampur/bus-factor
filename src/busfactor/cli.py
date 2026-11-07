@@ -160,7 +160,11 @@ def cmd_weekly(args) -> None:
     eligible = now[(now["days_since_human"] < 365) & ~now["repo_key"].isin(archived)].copy()
     eligible["prob"] = live.predict(specs["primary"], eligible)
     eligible["baseline_prob"] = live.predict(specs["baseline"], eligible)
-    eligible["reasons"] = live.reasons(specs["primary"], eligible)
+    # Reasons only where there is something to explain: a lower chance needs none.
+    reasons = live.reasons(specs["primary"], eligible)
+    eligible["reasons"] = [
+        r if p >= 0.10 else [] for r, p in zip(reasons, eligible["prob"], strict=True)
+    ]
     names = universe_df.assign(name=universe_df["name"].map(deps.canon)).dropna(subset=["repo_key"])
     packages = names.sort_values("rank").groupby("repo_key")["name"].apply(list)
     eligible["packages"] = eligible["repo_key"].map(packages)
