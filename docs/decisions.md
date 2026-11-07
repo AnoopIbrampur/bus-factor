@@ -149,3 +149,16 @@ they can't be chosen to flatter the results. Colour always comes with the words.
   Repos whose history can't be read at grading time are left out and counted.
 - The live record is reported apart from the backtest and never pooled with it.
 - Any change to these rules gets a dated note here and applies only to weeks frozen after it.
+
+## D16. Result of the D13 test, and a bug fixed after it (2026-11-07)
+The test ran once (Actions run 42416215467) on the pre-registered rules. The logistic model beat
+the best baseline (past-year commits) with a CI above zero, and LightGBM beat both the logistic
+model and the baseline with CIs above zero. **Under D13, LightGBM is the published model.**
+Numbers are in docs/model_card.md.
+
+Bug, found after the result: the code that saves the live model had no LightGBM branch, so it
+saved a one-feature model under LightGBM's name. No rule, feature, hyperparameter or number in
+backtest.json changed. The fix adds a stored form of LightGBM and per-project reasons from its own
+feature contributions (TreeSHAP), and adds calibration tables for every candidate to the report.
+The backtest was then re-run unchanged to produce the corrected model file. Its numbers have to
+match the first run, and the check is recorded in the model card.

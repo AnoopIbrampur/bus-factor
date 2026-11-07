@@ -240,9 +240,7 @@ def evaluate(preds: pd.DataFrame, reps: int = 2000) -> dict:
         "lightgbm_vs_best_baseline": {"gain": gb_gain, "ci": [gb_lo, gb_hi]},
         "passed": bool(passed or lgb_clear),
         "published_model": "lightgbm" if lgb_clear else ("logistic" if passed else best_base),
-        "calibration": {
-            c: calibration_table(y, preds[c].to_numpy()) for c in ("logistic", best_base)
-        },
+        "calibration": {c: calibration_table(y, preds[c].to_numpy()) for c in candidates},
     }
 
 

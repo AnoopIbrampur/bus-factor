@@ -7,9 +7,9 @@
 <h2>What was tested</h2>
 <p>{{ ctx.result_summary }}</p>
 <dl class="facts">
-<div><dt>Forecast model, log loss</dt><dd>{{ '%.3f'|format(b.overall.logistic.log_loss) }}</dd><div class="note">Lower is better</div></div>
+<div><dt>{{ ctx.published_label }}, log loss</dt><dd>{{ '%.3f'|format(b.overall[ctx.published].log_loss) }}</dd><div class="note">Lower is better</div></div>
 <div><dt>Best simple rule, log loss</dt><dd>{{ '%.3f'|format(b.overall[b.best_baseline].log_loss) }}</dd><div class="note">{{ ctx.base_label|capitalize }}</div></div>
-<div><dt>Improvement, 95% interval</dt><dd class="text">{{ '%.4f'|format(b.logistic_vs_best_baseline.ci[0]) }} to {{ '%.4f'|format(b.logistic_vs_best_baseline.ci[1]) }}</dd><div class="note">Passing needed this to stay above zero</div></div>
+<div><dt>Improvement, 95% interval</dt><dd class="text">{{ '%.3f'|format(ctx.gain.ci[0]) }} to {{ '%.3f'|format(ctx.gain.ci[1]) }}</dd><div class="note">Passing needed this to stay above zero</div></div>
 </dl>
 <div class="scroll"><table><caption>All four test years pooled, {{ b.overall.logistic.n|comma }} project-years, {{ b.overall.logistic.positives|comma }} went quiet</caption>
 <thead><tr><th>Method</th><th class="num">Log loss</th><th class="num">Brier</th><th class="num">ROC-AUC</th><th class="num">PR-AUC</th><th class="num">Quiet share in top tenth</th></tr></thead>
@@ -19,14 +19,14 @@
 <figure>{{ ctx.calibration_svg|safe }}
 <figcaption>Calibration of the published forecast in the past-years test. Dots on the dashed line mean the stated chance matched what happened.</figcaption></figure>
 <details><summary>By test year</summary>
-<div class="scroll"><table><thead><tr><th>Year starting</th><th class="num">Projects</th><th class="num">Went quiet</th><th class="num">Model log loss</th><th class="num">Simple rule log loss</th></tr></thead>
-<tbody>{% for year, row in b.by_year|dictsort %}<tr><td>{{ year }}</td><td class="num">{{ row.logistic.n|comma }}</td><td class="num">{{ row.logistic.positives|comma }}</td><td class="num">{{ '%.3f'|format(row.logistic.log_loss) }}</td><td class="num">{{ '%.3f'|format(row[b.best_baseline].log_loss) }}</td></tr>{% endfor %}</tbody></table></div>
+<div class="scroll"><table><thead><tr><th>Year starting</th><th class="num">Projects</th><th class="num">Went quiet</th><th class="num">{{ ctx.published_label }} log loss</th><th class="num">Simple rule log loss</th></tr></thead>
+<tbody>{% for year, row in b.by_year|dictsort %}<tr><td>{{ year }}</td><td class="num">{{ row.logistic.n|comma }}</td><td class="num">{{ row.logistic.positives|comma }}</td><td class="num">{{ '%.3f'|format(row[ctx.published].log_loss) }}</td><td class="num">{{ '%.3f'|format(row[b.best_baseline].log_loss) }}</td></tr>{% endfor %}</tbody></table></div>
 </details>
 <details><summary>Stricter outcome: no commit and no PyPI release</summary>
-<p>Log loss {{ '%.3f'|format(b.strict.overall.logistic.log_loss) }} for the model against {{ '%.3f'|format(b.strict.overall[b.strict.best_baseline].log_loss) }} for the best simple rule. {{ b.strict.overall.logistic.positives|comma }} of {{ b.strict.overall.logistic.n|comma }} project-years met this outcome. This is a secondary result and doesn't decide anything.</p>
+<p>Log loss {{ '%.3f'|format(b.strict.overall[ctx.published].log_loss) }} for the {{ ctx.published_label|lower }} against {{ '%.3f'|format(b.strict.overall[b.strict.best_baseline].log_loss) }} for the best simple rule. {{ b.strict.overall.logistic.positives|comma }} of {{ b.strict.overall.logistic.n|comma }} project-years met this outcome. This is a secondary result and doesn't decide anything.</p>
 </details>
 {% if b.criticality %}<details><summary>Comparison with OpenSSF Criticality Score</summary>
-<p>Only one dated score list can still be downloaded, from July 2025, so this covers the last test year only: {{ b.criticality.n|comma }} projects. ROC-AUC was {{ '%.3f'|format(b.criticality.logistic_auc) }} for the model and {{ '%.3f'|format(b.criticality.criticality_auc) }} for the score. The difference has a 95% interval of {{ '%.3f'|format(b.criticality.diff_ci[0]) }} to {{ '%.3f'|format(b.criticality.diff_ci[1]) }}. Criticality Score was built to measure importance rather than to forecast quiet, so this is a fair check and no verdict on that project.</p>
+<p>Only one dated score list can still be downloaded, from July 2025, so this covers the last test year only: {{ b.criticality.n|comma }} projects. ROC-AUC was {{ '%.3f'|format(b.criticality.logistic_auc) }} for the logistic model and {{ '%.3f'|format(b.criticality.criticality_auc) }} for the score. The difference has a 95% interval of {{ '%.3f'|format(b.criticality.diff_ci[0]) }} to {{ '%.3f'|format(b.criticality.diff_ci[1]) }}. Criticality Score was built to measure importance rather than to forecast quiet, so this is a fair check and no verdict on that project.</p>
 </details>{% endif %}
 
 <h2>How people are counted</h2>

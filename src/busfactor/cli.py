@@ -114,15 +114,18 @@ def cmd_backtest(args) -> None:
     names = sorted({c for c in TRAIN_CUTOFFS} | {c for c in TEST_CUTOFFS})
     usable = [c for c in names if c <= TEST_CUTOFFS[-1]]
     primary_name = result["published_model"]
-    columns = (
-        FEATURES if primary_name == "logistic" else forecast.BASELINES[result["best_baseline"]]
-    )
-    primary = forecast.fit_on(panel, usable, lambda: forecast.Logit(columns), "quiet")
+    makers = {
+        "logistic": lambda: forecast.Logit(FEATURES),
+        "lightgbm": lambda: forecast.Gbm(FEATURES),
+        **{k: (lambda c=v: forecast.Logit(c)) for k, v in forecast.BASELINES.items()},
+    }
+    primary = forecast.fit_on(panel, usable, makers[primary_name], "quiet")
+    train_rows = panel[panel["cutoff"].isin([c.isoformat() for c in usable])]
     base_cols = forecast.BASELINES[result["best_baseline"]]
     baseline = forecast.fit_on(panel, usable, lambda: forecast.Logit(base_cols), "quiet")
     forecast.save_json(
         {
-            "primary": live.model_to_json(primary, primary_name),
+            "primary": live.model_to_json(primary, primary_name, train_rows),
             "baseline": live.model_to_json(baseline, result["best_baseline"]),
             "passed": result["passed"],
         },

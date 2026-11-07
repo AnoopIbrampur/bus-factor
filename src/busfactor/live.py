@@ -14,11 +14,12 @@ import json
 from datetime import date, timedelta
 from pathlib import Path
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
 from .config import HORIZON_DAYS
-from .forecast import Logit, design, log_loss_each
+from .forecast import EPS, Gbm, design, log_loss_each
 from .health import BOT, day_number
 
 # Each pair reads (when the value is low, when the value is high).
@@ -45,7 +46,19 @@ PHRASES = {
 }
 
 
-def model_to_json(model: Logit, name: str) -> dict:
+def model_to_json(model, name: str, train: pd.DataFrame | None = None) -> dict:
+    """Store a fitted model as plain data, so the weekly job applies it without refitting."""
+    platt = {"platt_a": float(model.platt.coef_[0][0]), "platt_b": float(model.platt.intercept_[0])}
+    if isinstance(model, Gbm):
+        x = design(train, model.columns)
+        return {
+            "name": name,
+            "columns": model.columns,
+            "booster": model.model.booster_.model_to_string(),
+            # Typical values, used only to word the reasons ("fewer commits than usual").
+            "mean": x.mean(axis=0).tolist(),
+            **platt,
+        }
     return {
         "name": name,
         "columns": model.columns,
@@ -53,8 +66,7 @@ def model_to_json(model: Logit, name: str) -> dict:
         "scale": model.scaler.scale_.tolist(),
         "coef": model.model.coef_[0].tolist(),
         "intercept": float(model.model.intercept_[0]),
-        "platt_a": float(model.platt.coef_[0][0]),
-        "platt_b": float(model.platt.intercept_[0]),
+        **platt,
     }
 
 
@@ -62,31 +74,48 @@ def model_id(spec: dict) -> str:
     return hashlib.sha256(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:12]
 
 
+def _booster(spec: dict) -> lgb.Booster:
+    return lgb.Booster(model_str=spec["booster"])
+
+
+def _raw_score(spec: dict, frame: pd.DataFrame) -> np.ndarray:
+    x = design(frame, spec["columns"])
+    if "booster" in spec:
+        p = _booster(spec).predict(x).clip(EPS, 1 - EPS)
+        return np.log(p / (1 - p))
+    z = (x - np.array(spec["mean"])) / np.array(spec["scale"])
+    return z @ np.array(spec["coef"]) + spec["intercept"]
+
+
 def predict(spec: dict, frame: pd.DataFrame) -> np.ndarray:
-    """Probability of going quiet, from the stored numbers alone."""
-    z = (design(frame, spec["columns"]) - np.array(spec["mean"])) / np.array(spec["scale"])
-    raw = z @ np.array(spec["coef"]) + spec["intercept"]
+    """Chance of going quiet, from the stored model alone."""
+    raw = _raw_score(spec, frame)
     return 1 / (1 + np.exp(-(spec["platt_a"] * raw + spec["platt_b"])))
 
 
 def reasons(spec: dict, frame: pd.DataFrame, top: int = 3) -> list[list[str]]:
     """Plain-language drivers per repo: the features pushing the estimate furthest up.
 
-    A contribution is coefficient times standardised value, so it says how this project differs
-    from a typical one in the model's eyes. These are associations, not causes.
+    For the logistic model a contribution is coefficient times standardised value. For LightGBM it
+    is the tree model's own per-feature contribution (TreeSHAP). Either way it says how this
+    project differs from typical ones in the model's eyes. These are associations, not causes.
     """
-    z = (design(frame, spec["columns"]) - np.array(spec["mean"])) / np.array(spec["scale"])
-    contrib = z * np.array(spec["coef"])
+    x = design(frame, spec["columns"])
+    if "booster" in spec:
+        contrib = _booster(spec).predict(x, pred_contrib=True)[:, :-1]
+        above = x > np.array(spec["mean"])
+    else:
+        z = (x - np.array(spec["mean"])) / np.array(spec["scale"])
+        contrib = z * np.array(spec["coef"])
+        above = z > 0
     out = []
     for i in range(len(frame)):
-        order = np.argsort(-contrib[i])[:top]
         row = []
-        for j in order:
+        for j in np.argsort(-contrib[i])[:top]:
             if contrib[i, j] <= 0.05:
                 continue
-            col = spec["columns"][j]
-            low_text, high_text = PHRASES[col]
-            row.append(high_text if z[i, j] > 0 else low_text)
+            low_text, high_text = PHRASES[spec["columns"][j]]
+            row.append(high_text if above[i, j] else low_text)
         out.append(row)
     return out
 

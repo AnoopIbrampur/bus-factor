@@ -48,16 +48,20 @@ def context(
     backtest: dict, track: dict, today: date, model_name: str, audit_line: str = ""
 ) -> dict:
     """Everything the templates need beyond the package table."""
-    primary = backtest["overall"]["logistic"]
+    published = model_name if model_name in ("logistic", "lightgbm") else backtest["best_baseline"]
+    primary = backtest["overall"][published]
     base_name = backtest["best_baseline"]
     baseline = backtest["overall"][base_name]
-    gain = backtest["logistic_vs_best_baseline"]
+    gain = backtest[
+        "lightgbm_vs_best_baseline" if published == "lightgbm" else "logistic_vs_best_baseline"
+    ]
     plain = {"last_commit": "the date of the last commit", "commits_past_year": "past-year commits"}
     if backtest["passed"]:
         summary = (
-            f"Yes, modestly. In a test on past years, a model using git history beat the best "
-            f"simple rule ({plain[base_name]}): log loss {primary['log_loss']:.3f} against "
-            f"{baseline['log_loss']:.3f}. The rule for passing was published before the test ran."
+            f"Yes, modestly. In a test on four past years, a model using git history beat the "
+            f"best simple rule ({plain[base_name]}): log loss {primary['log_loss']:.3f} against "
+            f"{baseline['log_loss']:.3f}, and ROC-AUC {primary['roc_auc']:.2f} against "
+            f"{baseline['roc_auc']:.2f}. The rule for passing was published before the test ran."
         )
     else:
         summary = (
@@ -66,7 +70,6 @@ def context(
             f"{baseline['log_loss']:.3f}. So this site uses the simple rule. The rule for "
             f"passing was published before the test ran."
         )
-    published = "logistic" if model_name == "logistic" else base_name
     return {
         "updated": today.isoformat(),
         "result_summary": summary,
@@ -74,6 +77,10 @@ def context(
         "base_label": plain[base_name],
         "gain": gain,
         "model_name": model_name,
+        "published": published,
+        "published_label": {"logistic": "Logistic model", "lightgbm": "LightGBM model"}.get(
+            published, "Simple rule"
+        ),
         "track": track,
         "audit_line": audit_line,
         "calibration_svg": calibration_svg(backtest["calibration"][published]),

@@ -99,6 +99,17 @@ def test_stored_numbers_match_the_fitted_model():
     assert model_id(spec) == model_id(spec)
 
 
+def test_stored_lightgbm_matches_the_fitted_model():
+    from busfactor.forecast import Gbm
+
+    _, x = fitted()
+    g = Gbm(FEATURES).fit(x, x, "quiet")
+    spec = model_to_json(g, "lightgbm", x)
+    assert np.allclose(predict(spec, x), g.predict(x), atol=1e-6)
+    out = reasons(spec, x.head(5))
+    assert len(out) == 5 and all(len(r) <= 3 for r in out)
+
+
 def test_reasons_are_only_upward_and_short():
     m, x = fitted()
     out = reasons(model_to_json(m, "logistic"), x.head(5))
