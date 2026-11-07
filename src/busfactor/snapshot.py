@@ -103,8 +103,11 @@ def cohort(packages: pd.DataFrame, top_n: int = TOP_N) -> pd.DataFrame:
     )
     top = ranked.head(top_n).copy()
     top["rank_2022"] = range(1, len(top) + 1)
-    top["repo_key"] = top["_url"].map(lambda u: repo_key(u) if u else None)
-    top["host"] = top["_url"].map(host_of)
+    has_url = top["_url"].map(lambda u: isinstance(u, str))
+    top["repo_key"] = [
+        repo_key(u) if ok else None for u, ok in zip(top["_url"], has_url, strict=True)
+    ]
+    top["host"] = [host_of(u) if ok else None for u, ok in zip(top["_url"], has_url, strict=True)]
     return top
 
 

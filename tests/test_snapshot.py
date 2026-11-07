@@ -30,6 +30,7 @@ def dump():
         + pkg("2", "npm-thing", "npm", r"\N", r"\N", "{}", "999")
         + pkg("3", "beta", "pypi", "https://gitlab.com/a/b", r"\N", "{}", "700")
         + pkg("4", "gamma", "pypi", r"\N", r"\N", "{}", r"\N")
+        + pkg("5", "delta", "pypi", r"\N", r"\N", "{}", "100")
         + "\\.\n"
     )
 
@@ -40,7 +41,7 @@ def test_unescape():
 
 
 def test_only_pypi_rows_survive():
-    assert set(extract(dump())["name"]) == {"alpha", "beta", "gamma"}
+    assert set(extract(dump())["name"]) == {"alpha", "beta", "gamma", "delta"}
 
 
 def test_repo_metadata_url_is_preferred():
@@ -51,8 +52,9 @@ def test_repo_metadata_url_is_preferred():
 
 def test_cohort_ranks_by_downloads_and_drops_unranked():
     top = cohort(extract(dump()), top_n=5)
-    assert top["name"].tolist() == ["beta", "alpha"]
-    assert top["rank_2022"].tolist() == [1, 2]
+    assert top["name"].tolist() == ["beta", "alpha", "delta"]
+    assert top["rank_2022"].tolist() == [1, 2, 3]
+    assert pd.isna(top["repo_key"].iloc[2])
 
 
 def test_unknown_table_ends_cleanly():
