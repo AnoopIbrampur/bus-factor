@@ -22,9 +22,11 @@ def cmd_plan(args) -> None:
     hints = dict(zip(top["name"].map(deps.canon), req["repo_hint"], strict=True))
     gaps = top["_url"].isna()
     filled = top.loc[gaps, "name"].map(lambda n: hints.get(deps.canon(n)))
+    filled = filled.where(filled.notna(), None).astype(object)
+    top["_url"] = top["_url"].astype(object)
     top.loc[gaps, "_url"] = filled
-    top.loc[gaps, "repo_key"] = filled.map(lambda u: repo_key(u) if u else None)
-    top.loc[gaps, "host"] = filled.map(host_of)
+    top.loc[gaps, "repo_key"] = [repo_key(u) if isinstance(u, str) else None for u in filled]
+    top.loc[gaps, "host"] = [host_of(u) if isinstance(u, str) else None for u in filled]
     top["repo_from_pypi"] = gaps & top["_url"].notna()
     req = req.drop(columns=["repo_hint"])
     req.to_parquet(DATA_DIR / "requires.parquet", index=False)

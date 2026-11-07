@@ -106,9 +106,8 @@ def cohort(packages: pd.DataFrame, top_n: int = TOP_N) -> pd.DataFrame:
 
 def main() -> None:
     packages = extract(sys.stdin)
-    print(
-        f"pypi packages in dump: {len(packages)}, with downloads: {packages.downloads.notna().sum()}"
-    )
+    ranked = packages.downloads.notna().sum()
+    print(f"pypi packages in dump: {len(packages)}, with downloads: {ranked}")
     top = cohort(packages)
     print(
         f"cohort {len(top)}, lowest downloads {top.downloads.min()}, repos {top.repo_key.nunique()}"
