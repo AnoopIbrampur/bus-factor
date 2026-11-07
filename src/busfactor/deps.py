@@ -8,6 +8,7 @@ to somebody. Names follow PEP 503, so `Foo_Bar` and `foo-bar` are the same packa
 """
 
 import re
+from datetime import date
 
 import pandas as pd
 from packaging.requirements import InvalidRequirement, Requirement
@@ -82,6 +83,21 @@ def fetch_requires(names: list[str], client: Client | None = None) -> pd.DataFra
             }
         )
     return pd.DataFrame(rows)
+
+
+def fetch_release_days(names: list[str], client: Client | None = None) -> pd.DataFrame:
+    """Days on which each package uploaded a release. Upload times are set by PyPI."""
+    client = client or Client(min_interval=0.1)
+    rows = []
+    for name in names:
+        r = client.get(f"https://pypi.org/pypi/{name}/json")
+        if r is None:
+            continue
+        for files in r.json().get("releases", {}).values():
+            for f in files[:1]:
+                when = date.fromisoformat(f["upload_time"][:10])
+                rows.append((name, (when - date(1970, 1, 1)).days))
+    return pd.DataFrame(rows, columns=["name", "day"]).drop_duplicates()
 
 
 def edges(requires: pd.DataFrame, universe: set[str]) -> pd.DataFrame:

@@ -56,10 +56,22 @@ def cmd_harvest(args) -> None:
     )
 
 
+def cmd_releases(args) -> None:
+    """Record each cohort repo's PyPI release days, for the stricter outcome."""
+    cohort = pd.read_parquet(DATA_DIR / "cohort.parquet").dropna(subset=["repo_key"])
+    days = deps.fetch_release_days(cohort["name"].tolist())
+    keys = dict(zip(cohort["name"], cohort["repo_key"], strict=True))
+    days["repo_key"] = days["name"].map(keys)
+    days = days[["repo_key", "day"]].drop_duplicates()
+    days.to_parquet(DATA_DIR / "release_days.parquet", index=False)
+    print(f"{len(days)} repo release days")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="busfactor")
     sub = parser.add_subparsers(required=True)
     sub.add_parser("plan").set_defaults(func=cmd_plan)
+    sub.add_parser("releases").set_defaults(func=cmd_releases)
     h = sub.add_parser("harvest")
     h.add_argument("--shard", type=int, required=True)
     h.add_argument("--of", type=int, required=True)

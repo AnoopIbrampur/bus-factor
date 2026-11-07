@@ -1,0 +1,41 @@
+name: snapshot
+# One-off: read the 2022-11-09 archive and save the forecast cohort, with PyPI release dates for
+# the stricter outcome. Re-running gives the same cohort.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  cohort:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Free disk and install Postgres client
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client
+      - name: Download and extract
+        run: |
+          mkdir -p "$HOME/snap" data/private
+          curl -sSL -A internet-bus-factor-research \
+            https://ecosystems-data.s3.amazonaws.com/packages-2022-11-09.tar.gz | tar -xz -C "$HOME/snap"
+          F=$(find "$HOME/snap" -name '*.sql' | head -1)
+          PGR=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/pg_restore
+          "$PGR" -a -t registries -t packages -f - "$F" | uv run python -m busfactor.snapshot
+          rm -rf "$HOME/snap"
+      - name: Release dates
+        run: uv run busfactor releases
+      - name: Save
+        run: |
+          scripts/state.sh push data/cohort.parquet cohort.parquet
+          scripts/state.sh push data/release_days.parquet release_days.parquet
+          scripts/state.sh push data/private/cohort_map.parquet cohort_map.parquet.enc
