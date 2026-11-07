@@ -26,14 +26,6 @@ jobs:
           sudo apt-get install -y -qq postgresql-client
           ls /usr/lib/postgresql/
           pg_restore --version
-      - name: Peek at the archive
-        env:
-          D: ${{ inputs.date }}
-        run: |
-          URL="https://ecosystems-data.s3.amazonaws.com/packages-$D.tar.gz"
-          set +o pipefail
-          curl -sSL -A internet-bus-factor-research "$URL" | tar -tzv | head -20
-          set -o pipefail
       - name: Download
         env:
           D: ${{ inputs.date }}
@@ -45,13 +37,14 @@ jobs:
           df -h /
       - name: List the dump
         run: |
-          F=$(find "$HOME/snap" -type f | head -1)
+          F=$(find "$HOME/snap" -name '*.sql' | head -1)
           head -c 16 "$F" | xxd
+          cat "$(dirname "$F")/readme.md"
           PGR=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/pg_restore
           "$PGR" -l "$F" | tee toc.txt | grep -E 'TABLE|Dump|dump|Archive' | head -80
       - name: Show table columns and a row sample
         run: |
-          F=$(find "$HOME/snap" -type f | head -1)
+          F=$(find "$HOME/snap" -name '*.sql' | head -1)
           PGR=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/pg_restore
           for T in registries packages; do
             echo "=== $T"
