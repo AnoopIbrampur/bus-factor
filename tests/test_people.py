@@ -12,6 +12,8 @@ def test_bots_are_caught():
         ("aws-sdk-python-automation", "github-aws-sdk-python-automation@amazon.com"),
         ("Renovate Bot", "bot@renovateapp.com"),
         ("Hosted Weblate", "hosted@weblate.org"),
+        ("PyTorch UpdateBot", "pytorchupdatebot@users.noreply.github.com"),
+        ("copilot-swe-agent[bot]", "198982749+Copilot@users.noreply.github.com"),
     ]:
         assert is_bot(name, email), name
 
@@ -21,6 +23,9 @@ def test_humans_are_not_bots():
         ("Abbot Costello", "ac@example.org"),
         ("Robert Botha", "r.botha@example.org"),
         ("Jane Smith", "jane@example.org"),
+        ("Travis Example", "te@example.org"),
+        ("Sam Jenkins", "sj@example.org"),
+        ("Alex Robotham", "ar@example.org"),
     ]:
         assert not is_bot(name, email), name
 

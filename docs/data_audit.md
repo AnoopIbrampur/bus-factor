@@ -26,3 +26,17 @@ happened. Counts are filled in from real runs; nothing here is an estimate unles
    scored list dated 2025-07-25. See D7 for what this does to the baseline.
 3. **Some top packages have no repo at ecosyste.ms but do on PyPI** (numba, protobuf). PyPI's
    `project_urls` is used as a fallback.
+
+## Bot filter, hand check (2026-11-07)
+
+Method: 80 repos (the 40 most downloaded and 40 random ones) were read in memory, nothing stored.
+For the last two years of commits, I read every author flagged as a bot, and every unflagged
+author whose name or email contained a word common in automation.
+
+- 70,797 commits: 8,510 flagged as bots (12%).
+- Wrongly flagged humans: 2 people, 3 commits. One matched the word "travis". Rules were tightened.
+- Missed automation: 1 clear case, 504 commits (a project's update bot). Added.
+- AI coding agents that commit under their own identity (Copilot agent, Claude) count as bots.
+
+Limits: this check can't find automation with an ordinary human-looking name, and an account that
+mixes a person's commits with scripted ones counts as a person.
