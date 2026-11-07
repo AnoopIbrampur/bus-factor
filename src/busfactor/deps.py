@@ -13,6 +13,7 @@ import pandas as pd
 from packaging.requirements import InvalidRequirement, Requirement
 
 from .http import Client
+from .repos import normalize_repo_url
 
 _NAME = re.compile(r"[-_.]+")
 
@@ -36,6 +37,22 @@ def required_names(requires_dist: list[str] | None) -> list[str]:
     return sorted(out)
 
 
+def repo_from_project_urls(info: dict) -> str | None:
+    """Find a repo URL in PyPI metadata, for packages ecosyste.ms has no repo for."""
+    urls = dict(info.get("project_urls") or {})
+    urls["home_page"] = info.get("home_page")
+    preferred = ("source", "code", "repo", "github", "git", "home")
+    ordered = sorted(
+        urls.items(),
+        key=lambda kv: next((i for i, w in enumerate(preferred) if w in kv[0].lower()), 9),
+    )
+    for _, url in ordered:
+        found = normalize_repo_url(url)
+        if found:
+            return found
+    return None
+
+
 def fetch_requires(names: list[str], client: Client | None = None) -> pd.DataFrame:
     """Return one row per package: its required deps and whether PyPI declared any metadata."""
     client = client or Client(min_interval=0.1)
@@ -43,7 +60,15 @@ def fetch_requires(names: list[str], client: Client | None = None) -> pd.DataFra
     for name in names:
         r = client.get(f"https://pypi.org/pypi/{name}/json")
         if r is None:
-            rows.append({"name": canon(name), "found": False, "declared": False, "requires": []})
+            rows.append(
+                {
+                    "name": canon(name),
+                    "found": False,
+                    "declared": False,
+                    "requires": [],
+                    "repo_hint": None,
+                }
+            )
             continue
         info = r.json()["info"]
         rd = info.get("requires_dist")
@@ -53,6 +78,7 @@ def fetch_requires(names: list[str], client: Client | None = None) -> pd.DataFra
                 "found": True,
                 "declared": rd is not None,
                 "requires": required_names(rd),
+                "repo_hint": repo_from_project_urls(info),
             }
         )
     return pd.DataFrame(rows)
