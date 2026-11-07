@@ -1,0 +1,57 @@
+name: harvest
+# Refreshes git history for every target repo in parallel shards. Each shard stops itself before
+# the 6-hour job limit and saves what it has, so re-running this workflow simply carries on.
+on:
+  workflow_dispatch:
+    inputs:
+      replan:
+        description: Refetch the top list and requirements first
+        default: "true"
+      fresh_days:
+        description: Skip repos fetched within this many days
+        default: "5"
+permissions:
+  contents: write
+env:
+  BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Plan
+        if: inputs.replan == 'true'
+        run: |
+          scripts/state.sh pull cohort_map.parquet.enc data/private/cohort_map.parquet
+          uv run busfactor plan
+          scripts/state.sh push data/universe.parquet universe.parquet
+          scripts/state.sh push data/requires.parquet requires.parquet
+          scripts/state.sh push data/private/targets.parquet targets.parquet.enc
+  shard:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Harvest
+        env:
+          S: ${{ matrix.shard }}
+          DAYS: ${{ inputs.fresh_days }}
+        run: |
+          scripts/state.sh pull targets.parquet.enc data/private/targets.parquet
+          scripts/state.sh pull "rows-$S.parquet" "data/rows-$S.parquet"
+          scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"
+          uv run busfactor harvest --shard "$S" --of 6 --rows "data/rows-$S.parquet" \
+            --status "data/status-$S.parquet" --fresh-days "$DAYS" --budget 18000
+          scripts/state.sh push "data/rows-$S.parquet" "rows-$S.parquet"
+          scripts/state.sh push "data/status-$S.parquet" "status-$S.parquet"
