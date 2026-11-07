@@ -17,38 +17,19 @@ def line(*values):
     return "\t".join(values) + "\n"
 
 
+def pkg(pk, name, eco, homepage, repo, meta, dl):
+    period = "last-month" if dl != r"\N" else r"\N"
+    return line(pk, "1", name, eco, homepage, repo, meta, "1", dl, period, "1", r"\N")
+
+
 def dump():
     meta = json.dumps({"html_url": "https://github.com/Real/Repo", "archived": False})
     return io.StringIO(
         f"COPY public.packages ({COLS}) FROM stdin;\n"
-        + line(
-            "1",
-            "1",
-            "alpha",
-            r"\N",
-            "https://github.com/x/old",
-            meta,
-            "3",
-            "500",
-            "last-month",
-            "9",
-            r"\N",
-        )
-        + line("2", "2", "npm-thing", "npm", r"\N", r"\N", "{}", "0", "999", r"\N", "0", r"\N")
-        + line(
-            "3",
-            "1",
-            "beta",
-            "https://gitlab.com/a/b",
-            r"\N",
-            "{}",
-            "1",
-            "700",
-            "last-month",
-            "1",
-            r"\N",
-        )
-        + line("4", "1", "gamma", "pypi", r"\N", r"\N", "{}", "0", r"\N", r"\N", "0", r"\N")
+        + pkg("1", "alpha", "pypi", r"\N", "https://github.com/x/old", meta, "500")
+        + pkg("2", "npm-thing", "npm", r"\N", r"\N", "{}", "999")
+        + pkg("3", "beta", "pypi", "https://gitlab.com/a/b", r"\N", "{}", "700")
+        + pkg("4", "gamma", "pypi", r"\N", r"\N", "{}", r"\N")
         + "\\.\n"
     )
 
