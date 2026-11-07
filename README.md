@@ -1,3 +1,79 @@
 # Internet Bus Factor
 
-Work in progress. Which widely used PyPI packages rest on very few people, what depends on them, and which are likely to go quiet?
+**Live site: https://anoopibrampur.github.io/bus-factor/**
+
+Which widely used PyPI packages rest on very few people, what depends on them, and which are
+likely to go quiet? A public map, a failure simulator, and a forecast that is graded in public.
+
+## Results
+
+- **Few people carry a lot.** Of the 4,999 most downloaded PyPI packages, 4,671 have a git history
+  we could read. In 2,322 of those (50%), one person made at least half of the past year's human
+  commits. Among the top 100 packages it's 57. That includes packages hundreds of others depend
+  on, such as idna, requests, python-dateutil and pyyaml.
+- **The forecast passed its pre-registered test.** Over four past years (9,568 project-years from
+  a 2022 cohort), a LightGBM model on git history predicted "no human commit in the next 12
+  months" better than the best simple rule. Log loss was 0.299 against 0.344 (gain CI 0.039 to
+  0.052) and ROC-AUC 0.87 against 0.82. The rule was committed before any result
+  (commit `180fd73`).
+- **Quiet is often a pause, not an end.** In a hand check and in the data, about 4 in 10 projects
+  that went a year without a human commit later had one again. Git can't tell finished software
+  from unattended software, and the site never claims it can.
+- **Live record started.** The first week of forecasts is frozen on the
+  [`predictions`](https://github.com/AnoopIbrampur/bus-factor/tree/predictions) branch. It gets
+  graded from 2027-11-07. There is no live result yet.
+
+## What's on the site
+1. **Map:** the top 5,000 packages, their repos and their dependency graph.
+2. **Health:** active people, bus factor, concentration, trend, time since the last human commit
+   and handovers, with bots filtered out.
+3. **Simulator:** pick a package and see its direct and indirect dependents and the downloads
+   behind them. Every result has its own URL.
+4. **Forecast:** the chance of no human commit in the next 12 months, with plain-language reasons
+   and a weekly frozen record.
+
+## How it works
+- Data: ecosyste.ms (package list, 2022 archive via `pg_restore`), PyPI JSON (requirements,
+  release dates), and full git history from tree-less clones (`--filter=tree:0`).
+- Every measure is computed by one function that only sees commits dated up to the cutoff. Tests
+  inject future commits and fail if anything changes.
+- Heavy work runs on GitHub Actions: 6 parallel resumable shards clone about 6,000 repos in under
+  15 minutes. State lives in a release, not in git.
+- Weekly workflow: refresh, score, freeze into `predictions` (new files only), grade what's due,
+  deploy Pages, keep the schedule alive.
+
+## Honest limits
+Commits miss reviews, triage, releases and support. Monorepos can't be split by package. 292
+top packages have no repo we can read, and they show as unknown, never as healthy. The 2022
+cohort still carries some survivor bias (docs/model_card.md). Downloads count machines, not
+people.
+
+## Safety and privacy
+No names, emails or usernames are stored or published. Emails are hashed in memory with a
+throwaway salt and replaced by a per-repo number. There are no repo links, because personal-account
+URLs contain usernames. Nothing can be sorted by health or forecast, and "looks quiet" can't be
+combined with "few active contributors". Maintainers owe nobody free labour. To ask for a
+correction, [open an issue](https://github.com/AnoopIbrampur/bus-factor/issues).
+
+## Related work
+[OpenSSF Criticality Score](https://github.com/ossf/criticality_score),
+[OpenSSF Scorecard](https://securityscorecards.dev) and the Harvard and Linux Foundation census
+studies of open source already map critical projects. This project adds a dated, graded forecast
+and a simulator anyone can use.
+
+## Docs
+[Decisions](docs/decisions.md) · [Data audit](docs/data_audit.md) · [Model card](docs/model_card.md)
+· [Case study](docs/case_study.md) · [Launch notes](docs/launch.md)
+
+## Run it
+```bash
+uv sync
+uv run pytest
+```
+The pipeline commands are `busfactor plan | harvest | backtest | weekly | site`. See
+`.github/workflows/`.
+
+## Licence and credit
+Code: MIT. Published data: CC-BY-SA 4.0, derived in part from [ecosyste.ms](https://ecosyste.ms)
+open data (CC-BY-SA 4.0). Fonts: Spectral and Atkinson Hyperlegible (SIL OFL). A student
+portfolio project, with no money involved.
