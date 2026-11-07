@@ -15,14 +15,16 @@ import secrets
 
 _BOT_NAME = re.compile(
     r"""
-    \[bot\]$ | (^|[-_ .])bots?($|[-_ .\d]) | updatebot | pytorchbot | boringbot | \brobot\b | -robot | dependabot | renovate | github-actions
+    \[bot\]$ | (^|[-_ .])bots?($|[-_ .\d]) | updatebot | pytorchbot | boringbot
+    | \brobot\b | -robot | dependabot | renovate | github-actions
     | ^github$ | ^github\ action | ^actions-user$ | web-flow | pre-commit-ci | pyup | greenkeeper
     | snyk | codecov | deepsource | imgbot | all-?contributors | mergify | semantic-release
     | release-please | weblate | transifex | crowdin | lokalise | sourcery | restyled
     | stainless | copybara | yoshi-automation | owlbot | automation | automated | autobuild
     | auto-?update | auto-?merge | azure-sdk | azclibot | openapi-generator
     | ^travis(\ ?ci)?$ | travis-ci | circleci | ^jenkins$ | jenkins- | zuul
-    | ^copilot$ | swe-agent | ^claude(\ code)?$ | ^cursor(\ ?agent)?$ | ^codex$ | homu$ | ^bors | svn2git | cvs2svn | ^autofix | ^ci$ | -ci$ | ^cibuild
+    | ^copilot$ | swe-agent | ^claude(\ code)?$ | ^cursor(\ ?agent)?$ | ^codex$
+    | homu$ | ^bors | svn2git | cvs2svn | ^autofix | ^ci$ | -ci$ | ^cibuild
     | ^release-?manager$ | versioneer | sync-?bot | fossabot | gitter-badger | scrutinizer
     | ^unknown$ | ^none$ | ^root$ | ^nobody$
     """,
