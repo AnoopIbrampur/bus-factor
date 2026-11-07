@@ -30,7 +30,7 @@ jobs:
             https://ecosystems-data.s3.amazonaws.com/packages-2022-11-09.tar.gz | tar -xz -C "$HOME/snap"
           F=$(find "$HOME/snap" -name '*.sql' | head -1)
           PGR=$(ls -d /usr/lib/postgresql/*/bin | sort -V | tail -1)/pg_restore
-          "$PGR" -a -t registries -t packages -f - "$F" | uv run python -m busfactor.snapshot
+          "$PGR" -a -t packages -f - "$F" | uv run python -m busfactor.snapshot
           rm -rf "$HOME/snap"
       - name: Release dates
         run: uv run busfactor releases

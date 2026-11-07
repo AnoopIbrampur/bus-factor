@@ -8,7 +8,7 @@ import pandas as pd
 from busfactor.snapshot import cohort, copy_tables, extract, unescape
 
 COLS = (
-    "id, registry_id, name, homepage, repository_url, repo_metadata, "
+    "id, registry_id, name, ecosystem, homepage, repository_url, repo_metadata, "
     "dependent_packages_count, downloads, downloads_period, dependent_repos_count, status"
 )
 
@@ -20,11 +20,7 @@ def line(*values):
 def dump():
     meta = json.dumps({"html_url": "https://github.com/Real/Repo", "archived": False})
     return io.StringIO(
-        'COPY public.registries (id, name, ecosystem, "default") FROM stdin;\n'
-        + line("1", "pypi.org", "pypi", "t")
-        + line("2", "npmjs.org", "npm", "t")
-        + "\\.\n\n"
-        + f"COPY public.packages ({COLS}) FROM stdin;\n"
+        f"COPY public.packages ({COLS}) FROM stdin;\n"
         + line(
             "1",
             "1",
@@ -38,7 +34,7 @@ def dump():
             "9",
             r"\N",
         )
-        + line("2", "2", "npm-thing", r"\N", r"\N", "{}", "0", "999", r"\N", "0", r"\N")
+        + line("2", "2", "npm-thing", "npm", r"\N", r"\N", "{}", "0", "999", r"\N", "0", r"\N")
         + line(
             "3",
             "1",
@@ -52,7 +48,7 @@ def dump():
             "1",
             r"\N",
         )
-        + line("4", "1", "gamma", r"\N", r"\N", "{}", "0", r"\N", r"\N", "0", r"\N")
+        + line("4", "1", "gamma", "pypi", r"\N", r"\N", "{}", "0", r"\N", r"\N", "0", r"\N")
         + "\\.\n"
     )
 

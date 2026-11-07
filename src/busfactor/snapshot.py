@@ -9,6 +9,7 @@ No Postgres server is needed. The maintainers tables are never restored.
 import json
 import re
 import sys
+from collections import Counter
 
 import pandas as pd
 
@@ -68,13 +69,14 @@ def repo_url_of(row: dict) -> str | None:
 
 def extract(stream) -> pd.DataFrame:
     """Return every PyPI package in the dump, keeping only non-personal fields."""
-    pypi_ids: set[str] = set()
     rows = []
+    seen: Counter[str | None] = Counter()
     for table, row in copy_tables(stream):
-        if table == "registries":
-            if unescape(row["ecosystem"]) == "pypi" or "pypi" in (row["name"] or "").lower():
-                pypi_ids.add(row["id"])
-        elif table == "packages" and row["registry_id"] in pypi_ids:
+        if table != "packages":
+            continue
+        ecosystem = unescape(row["ecosystem"])
+        seen[ecosystem] += 1
+        if ecosystem == "pypi":
             url = repo_url_of(row)
             dl = unescape(row["downloads"])
             rows.append(
@@ -89,6 +91,8 @@ def extract(stream) -> pd.DataFrame:
                     "_url": url,
                 }
             )
+    if not rows:
+        raise RuntimeError(f"no PyPI rows found; ecosystems seen: {seen.most_common(10)}")
     return pd.DataFrame(rows)
 
 
