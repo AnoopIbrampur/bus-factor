@@ -22,6 +22,17 @@ likely to go quiet? A public map, a failure simulator, and a forecast that is gr
   with log loss 0.348 against 0.399 (gain CI 0.045 to 0.057). Rules in D18, result in D20. The
   curve runs low at long horizons: at 2 years, the top tenth was told 33% and 46% stayed silent.
   The site says so.
+- **Fixing the curve's low bias didn't clear the bar.** A pre-registered recalibration (D21)
+  brought the 2-year top tenth from 33% said to 42%, against 45% observed. But its log loss gain
+  (0.0015, CI −0.0002 to 0.0032) wasn't clearly above zero, so the original curve stays (D24).
+- **Which quiet projects come back: barely predictable.** Within 12 months, about 1 in 6 quiet
+  projects has a human commit again. A pre-registered model beat "days since the last commit"
+  (log loss 0.402 against 0.405, CI on the gain 0.001 to 0.006), but nearly all of its signal is
+  how long the silence has lasted (D22, D25).
+- **npm, side by side.** Among npm's 100 most downloaded packages, 73% have one person making half
+  of the commits, against 58% on PyPI. The median is 3.5 active people against 18. Across the
+  top 5,000, a third of npm repos look quiet, against a fifth on PyPI. Many npm packages are
+  tiny, single-purpose and finished, so read this as packaging style as much as risk (D23, D26).
 - **Quiet is often a pause, not an end.** In a hand check and in the data, about 4 in 10 projects
   that went a year without a human commit later had one again. Git can't tell finished software
   from unattended software, and the site never claims it can.
@@ -39,9 +50,14 @@ likely to go quiet? A public map, a failure simulator, and a forecast that is gr
    and a weekly frozen record.
 5. **How long it may stay silent:** on each package page, the chance of no human commit for 3
    months, 6 months and 2 years, next to the frozen 12-month forecast.
-6. **Dependency checker:** paste a `requirements.txt` or `pyproject.toml` and see the health of
-   everything your project needs, down the tree. Parsing happens in the browser, and nothing is
-   uploaded.
+6. **Dependency checker:** paste a `requirements.txt`, `pyproject.toml` or npm `package.json`
+   and see the health of everything your project needs, down the tree. Parsing happens in the
+   browser, and nothing is uploaded.
+7. **Will it come back?** Quiet packages show the chance of a human commit again within 12
+   months.
+8. **npm:** the top 5,000 npm packages with the same health measures and dependents, plus a
+   PyPI-versus-npm comparison whose measures were fixed before any npm number was seen. There is
+   no npm forecast, because the models were only tested on PyPI.
 
 ## How it works
 - Data: ecosyste.ms (package list, 2022 archive via `pg_restore`), PyPI JSON (requirements,

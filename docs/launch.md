@@ -11,6 +11,9 @@
   walk-forward training. It passed a second pre-registered test (log loss 0.348 vs 0.399 across
   four horizons), and its long-horizon under-calibration is published openly. Also shipped an
   in-browser **dependency-tree checker** for `requirements.txt` and `pyproject.toml`.
+- Ran **four pre-registered tests** and published every outcome, including a recalibration that
+  didn't clear its bar, and a revival model that passed narrowly. Extended the pipeline to
+  **npm** (top 5,000, about 3,100 more repos) with a PyPI-vs-npm comparison fixed in advance.
 - Enforced **point-in-time correctness** with leakage tests, and launched a **public prediction
   record**: weekly forecasts frozen to an append-only git branch before outcomes, graded after
   12 months.

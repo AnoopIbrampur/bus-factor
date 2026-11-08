@@ -74,12 +74,22 @@ weekly schedule.
   quiet became more common over time and the long horizon only learns from older years. I
   published that instead of quietly recalibrating, because the rules were fixed first.
 
+- **Two more pre-registered tests, one pass and one fail.** Recalibrating the curve fixed its
+  top-tenth bias but didn't clear the log-loss bar (gain CI −0.0002 to 0.0032), so it wasn't
+  adopted. A revival model passed narrowly (gain CI 0.001 to 0.006). I published both results
+  the same way, which is the point of writing the rules first.
+
+- **npm:** the same pipeline mapped the top 5,000 npm packages (3,089 more repos) in one weekly
+  run. Among the top 100, 73% have one person making half the commits (PyPI 58%), with a median
+  of 3.5 active people against 18. I fixed the comparison measures and the "difference" rule
+  before seeing any npm number, and there's no npm forecast, because no model was tested there.
+
 ## What I'd do next
 - Grade the first live week in November 2027, and see whether backtest skill holds.
 - Add issue and review activity as point-in-time features. They're absent today because only
   current snapshots were free.
-- Pre-register a recalibrated survival model, to fix the low long-horizon numbers.
-- Extend to npm once the PyPI record is stable.
+- An npm transfer test: does the PyPI-trained forecast work on npm? It needs a 2022 npm cohort
+  and its own pre-registration.
 
 ## Stack
 Python 3.12, uv, pandas, Parquet, scikit-learn, LightGBM, httpx, Jinja2, pytest, ruff,

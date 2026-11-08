@@ -92,6 +92,23 @@ decision is the same in both runs. The live model is the one from the second run
   0.2987), which is why the frozen 12-month forecast stays D13's.
 - **Not graded live.** Curves aren't in the frozen weekly files.
 
+## Recalibration attempt (D21, D24)
+A Platt step on the latest training cutoff fixed most of the curve's low top-tenth numbers. At
+2 years it said 42% against 45% observed, where the D18 curve said 33%. Its pooled log loss gain
+(0.0015, CI −0.0002 to 0.0032) didn't clear zero, so the D18 curve stays, as pre-registered.
+
+## Third model: will a quiet project come back? (D22, D25)
+- **What:** among repos with no human commit in the past year, the chance of one within the
+  next 12 months.
+- **Published:** logistic regression on the 16 git features plus releases and bot commits in the
+  past year, Platt-calibrated.
+- **Result:** log loss 0.4016 against 0.4052 for days since the last commit, with a gain CI of
+  0.0011 to 0.0062. ROC-AUC 0.735 against 0.729. LightGBM did worse than both.
+- **Base rate:** 14% to 22% came back within a year, depending on the test year.
+- **Known weakness:** almost all of the signal is the length of the silence. Training years
+  before 2022 come from a cohort chosen for being popular in 2022, which over-represents returns.
+  That can only hurt test performance.
+
 ## Intended use
 To help decide where help and funding should go. Not for judging people. Not for finding projects
 to target. The site has no ranking by this score.

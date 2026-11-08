@@ -88,6 +88,9 @@ jobs:
         id: deploy1
         continue-on-error: true
         uses: actions/deploy-pages@v4
+      - name: Wait for any other deployment to finish
+        if: steps.deploy1.outcome == 'failure'
+        run: sleep 90
       - name: Deploy, second try
         if: steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v4

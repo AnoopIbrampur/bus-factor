@@ -42,4 +42,6 @@ jobs:
         continue-on-error: true
         uses: actions/deploy-pages@v4
       - if: steps.d1.outcome == 'failure'
+        run: sleep 90  # usually another deployment is still finishing
+      - if: steps.d1.outcome == 'failure'
         uses: actions/deploy-pages@v4

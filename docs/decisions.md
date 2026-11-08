@@ -492,3 +492,20 @@ again within 12 months. The share that came back each test year: 22% (2022), 16%
 - **Live use needs fresh release days.** The pinned release days stop at 2026-11-07 and cover
   only cohort packages. The weekly job therefore refetches PyPI release days for the packages of
   repos that look quiet today, before scoring. That's a few hundred PyPI requests.
+
+## D26. First npm comparison under D23 (2026-11-08)
+Weekly run 42508959906 read 3,089 new npm repos. 4,948 of the top 5,000 npm packages have a
+readable history, and 52 are unknown. "Different" below means the 95% interval of the difference
+excludes zero, as D23 set.
+
+**Results.**
+
+| Scope | One person made half the commits | Looks quiet | Median active people |
+|---|---|---|---|
+| Top 5,000, per package | PyPI 50%, npm 48%: no clear difference | PyPI 18%, npm 24%: npm higher | — |
+| Top 5,000, each repo once | PyPI 55%, npm 52%: npm slightly lower | PyPI 21%, npm 36%: npm higher | PyPI 5.5, npm 2: npm lower |
+| Top 100 | PyPI 58%, npm 73%: npm higher | — | PyPI 18, npm 3.5: npm lower |
+
+**Wording on the site, as D23 requires.** "Among the most downloaded packages", with the
+confounders listed. The many single-purpose npm packages from one author make "few people" and
+"quiet" partly a matter of packaging style. A tiny finished package can be quiet for good reasons.
