@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import build, deps, forecast, harvest, live, narrative, site, universe
-from .config import DATA_DIR, PRIVATE_DIR, TEST_CUTOFFS, TRAIN_CUTOFFS
-from .health import FEATURES, measures_at
+from . import build, deps, forecast, harvest, live, narrative, site, survival, universe
+from .config import DATA_DIR, PRIVATE_DIR, SURVIVAL_AS_OF, TEST_CUTOFFS, TRAIN_CUTOFFS
+from .health import FEATURES, day_number, measures_at
 from .repos import host_of, normalize_repo_url, repo_key
 
 
@@ -134,6 +134,38 @@ def cmd_backtest(args) -> None:
     print(json.dumps({k: result[k] for k in ("passed", "published_model", "best_baseline")}))
 
 
+def cmd_survival(args) -> None:
+    """Run the pre-registered D18 test. It writes only its own files, never models.json."""
+    as_of = SURVIVAL_AS_OF
+    cohort = pd.read_parquet(DATA_DIR / "cohort.parquet")
+    keys = set(cohort["repo_key"].dropna())
+    status = build.load_status(DATA_DIR)
+    ok = status[(status["status"] == "ok") & (status["fetched_at"] >= as_of.isoformat())]
+    usable = keys & set(ok["repo_key"])
+    rows = build.load_rows(DATA_DIR)
+    rows = rows[rows["repo_key"].isin(usable) & (rows["day"] <= day_number(as_of))]
+    panel = forecast.build_panel(rows)
+    items = survival.walk_forward(panel, rows, as_of)
+    items.to_parquet(DATA_DIR / "survival_items.parquet", index=False)
+    result = survival.evaluate(items, args.reps)
+    result["as_of"] = as_of.isoformat()
+    result["coverage"] = {
+        "cohort_repos": len(keys),
+        "repos_used": len(usable),
+        "eligible_by_cutoff": panel.groupby("cutoff").size().to_dict(),
+    }
+    forecast.save_json(result, DATA_DIR / "survival.json")
+    name = result["published_model"]
+    if name:
+        # The live model learns from every cutoff, with outcomes seen up to the as-of date.
+        cutoffs = sorted(set(TRAIN_CUTOFFS) | set(TEST_CUTOFFS))
+        train = survival.training_rows(panel, rows, as_of, cutoffs)
+        model = survival.MAKERS[name]().fit(train)
+        spec = {**survival.model_to_json(model, name), "as_of": as_of.isoformat()}
+        forecast.save_json(spec, DATA_DIR / "survival_model.json")
+    print(json.dumps({k: result[k] for k in ("passed", "published_model", "best_baseline")}))
+
+
 def cmd_criticality(args) -> None:
     """Reduce the OpenSSF score file to hashed repo keys and scores."""
     table = pd.read_csv(args.csv, usecols=["repo.url", "default_score"])
@@ -212,6 +244,9 @@ def main() -> None:
     b = sub.add_parser("backtest")
     b.add_argument("--reps", type=int, default=2000)
     b.set_defaults(func=cmd_backtest)
+    sv = sub.add_parser("survival")
+    sv.add_argument("--reps", type=int, default=2000)
+    sv.set_defaults(func=cmd_survival)
     h = sub.add_parser("harvest")
     h.add_argument("--shard", type=int, required=True)
     h.add_argument("--of", type=int, required=True)

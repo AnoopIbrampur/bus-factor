@@ -1,0 +1,46 @@
+name: survival
+# The pre-registered D18 test. The first run copies its inputs to dated "survival-*" assets and
+# every later run reads those copies, so the weekly harvest can't change the answer.
+# It writes only survival files: models.json and the frozen record are never touched.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+env:
+  BF_STATE_KEY: ${{ secrets.BF_STATE_KEY }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: Pin and pull inputs
+        run: |
+          pin() {  # pin <current asset> <pinned asset> <local path>
+            scripts/state.sh pull "$2" "$3"
+            if [ ! -f "$3" ]; then
+              scripts/state.sh pull "$1" "$3"
+              test -f "$3"
+              scripts/state.sh push "$3" "$2"
+            fi
+          }
+          pin cohort.parquet survival-cohort.parquet data/cohort.parquet
+          for S in 0 1 2 3 4 5; do
+            pin "rows-$S.parquet.enc" "survival-rows-$S.parquet.enc" "data/rows-$S.parquet"
+            pin "status-$S.parquet" "survival-status-$S.parquet" "data/status-$S.parquet"
+          done
+      - name: Run the test
+        run: uv run busfactor survival
+      - name: Save
+        run: |
+          scripts/state.sh push data/survival.json survival.json
+          scripts/state.sh push data/survival_items.parquet survival_items.parquet.enc
+          if [ -f data/survival_model.json ]; then
+            scripts/state.sh push data/survival_model.json survival_model.json
+          fi

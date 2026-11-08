@@ -16,3 +16,6 @@ SNAPSHOT_DATE = date(2022, 11, 9)
 TEST_CUTOFFS = (date(2022, 11, 9), date(2023, 11, 1), date(2024, 11, 1), date(2025, 11, 1))
 TRAIN_CUTOFFS = tuple(date(y, 11, 1) for y in range(2017, 2025))
 HORIZON_DAYS = 365
+
+# D18: the survival test reads a pinned harvest, so later weekly runs can't change its answer.
+SURVIVAL_AS_OF = date(2026, 11, 7)
