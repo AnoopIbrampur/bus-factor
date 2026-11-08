@@ -20,6 +20,11 @@ in a way that gets checked?
 - A failure simulator with a static, shareable page for every package.
 - A forecast of "no human commit in the next 12 months", tested walk-forward on four past years
   and now frozen weekly in public before outcomes exist.
+- A survival curve per project (how long it may stay silent), tested under its own pre-registered
+  rules. The hard part was censoring: a training row may only learn from intervals that had ended
+  by the test date, and a leakage test enforces that.
+- A dependency checker that walks your own requirements tree in the browser. It loads one small
+  file per package, so the site never publishes a single sortable file of every package's health.
 
 ## Hard parts and how I handled them
 **Survivor bias.** Today's top list only contains survivors. I took the cohort from an
@@ -63,10 +68,17 @@ weekly schedule.
   quiet projects better (ROC-AUC 0.85 against 0.72). Criticality measures importance, not quiet, so
   the two answer different questions.
 
+- **Survival curve:** a LightGBM discrete-time hazard beat a Kaplan–Meier curve and two
+  one-feature hazards at every horizon. Pooled log loss was 0.348 against 0.399 for the best
+  simple method. It runs low at 2 years (said 33%, saw 46% in the top tenth), most likely because
+  quiet became more common over time and the long horizon only learns from older years. I
+  published that instead of quietly recalibrating, because the rules were fixed first.
+
 ## What I'd do next
 - Grade the first live week in November 2027, and see whether backtest skill holds.
 - Add issue and review activity as point-in-time features. They're absent today because only
   current snapshots were free.
+- Pre-register a recalibrated survival model, to fix the low long-horizon numbers.
 - Extend to npm once the PyPI record is stable.
 
 ## Stack

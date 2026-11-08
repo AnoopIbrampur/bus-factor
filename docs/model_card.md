@@ -80,6 +80,18 @@ decision is the same in both runs. The live model is the one from the second run
 - **Live record:** no graded weeks yet. The first frozen week (named 2026-11-02, frozen
   2026-11-07) is due for grading on 2027-11-07. Backtest skill doesn't guarantee live skill.
 
+## Second model: how long a project may stay silent (D18, D20)
+- **What:** S(h), the chance of no human commit for h = 90, 180, 365 or 730 days after a date.
+  A discrete-time hazard over four intervals, with D13's features plus the interval.
+- **Published:** LightGBM hazard, with no calibration step. Fitted on every cutoff, with outcomes
+  seen up to the pinned date 2026-11-07. Stored in `survival_model.json`.
+- **Result:** pooled log loss 0.348 against 0.399 for the best simple method (past-year commits).
+  Gain CI 0.045 to 0.057. It wins at every horizon and in every fold.
+- **Known weakness:** under-calibrated at long horizons. In the top tenth at 2 years, it said 33%
+  and 46% stayed silent. At 12 months it is slightly worse than the D13 model (0.3025 against
+  0.2987), which is why the frozen 12-month forecast stays D13's.
+- **Not graded live.** Curves aren't in the frozen weekly files.
+
 ## Intended use
 To help decide where help and funding should go. Not for judging people. Not for finding projects
 to target. The site has no ranking by this score.

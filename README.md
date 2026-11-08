@@ -16,6 +16,12 @@ likely to go quiet? A public map, a failure simulator, and a forecast that is gr
   months" better than the best simple rule. Log loss was 0.299 against 0.344 (gain CI 0.039 to
   0.052) and ROC-AUC 0.87 against 0.82. The rule was committed before any result
   (commit `180fd73`).
+- **A second pre-registered test, for "how long", also passed.** A discrete-time hazard model
+  gives each project a curve: the chance of no human commit for 3 months, 6 months, 1 year and 2
+  years. Pooled across horizons (36,176 scored predictions), LightGBM beat the best simple method,
+  with log loss 0.348 against 0.399 (gain CI 0.045 to 0.057). Rules in D18, result in D20. The
+  curve runs low at long horizons: at 2 years, the top tenth was told 33% and 46% stayed silent.
+  The site says so.
 - **Quiet is often a pause, not an end.** In a hand check and in the data, about 4 in 10 projects
   that went a year without a human commit later had one again. Git can't tell finished software
   from unattended software, and the site never claims it can.
@@ -31,6 +37,11 @@ likely to go quiet? A public map, a failure simulator, and a forecast that is gr
    behind them. Every result has its own URL.
 4. **Forecast:** the chance of no human commit in the next 12 months, with plain-language reasons
    and a weekly frozen record.
+5. **How long it may stay silent:** on each package page, the chance of no human commit for 3
+   months, 6 months and 2 years, next to the frozen 12-month forecast.
+6. **Dependency checker:** paste a `requirements.txt` or `pyproject.toml` and see the health of
+   everything your project needs, down the tree. Parsing happens in the browser, and nothing is
+   uploaded.
 
 ## How it works
 - Data: ecosyste.ms (package list, 2022 archive via `pg_restore`), PyPI JSON (requirements,

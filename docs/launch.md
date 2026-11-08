@@ -7,6 +7,10 @@
 - Designed a **pre-registered, survivor-bias-aware backtest**. The cohort came from a 2022
   Postgres archive restored on CI runners, with walk-forward evaluation and repo-clustered
   bootstrap CIs. LightGBM beat the best baseline (log loss 0.299 vs 0.344, ROC-AUC 0.87 vs 0.82).
+- Added a **survival analysis** layer, a discrete-time hazard model with censoring-safe
+  walk-forward training. It passed a second pre-registered test (log loss 0.348 vs 0.399 across
+  four horizons), and its long-horizon under-calibration is published openly. Also shipped an
+  in-browser **dependency-tree checker** for `requirements.txt` and `pyproject.toml`.
 - Enforced **point-in-time correctness** with leakage tests, and launched a **public prediction
   record**: weekly forecasts frozen to an append-only git branch before outcomes, graded after
   12 months.
