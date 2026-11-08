@@ -171,5 +171,6 @@ def survival_context(
                 "saw": result["calibration"][h][shown][-1]["observed"],
             }
             for h in sorted(result.get("calibration", {}), key=int)
+            if h != "365"  # the site's 12-month chance comes from the calibrated D13 model
         ],
     }
