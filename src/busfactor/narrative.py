@@ -118,8 +118,8 @@ def survival_context(
     base_ll = result["overall"][best]["log_loss"]
     if result["passed"]:
         summary = (
-            f"Yes. Scored at 3 months, 6 months, 12 months and 2 years, the "
-            f"{SURVIVAL_LABELS[pub].lower()} beat the best simple method "
+            f"Yes. Across all four horizons, the {SURVIVAL_LABELS[pub]} beat the best simple "
+            f"method "
             f"({SURVIVAL_LABELS[best].lower()}): log loss {model_ll:.3f} against {base_ll:.3f}. "
             f"The rule for passing was published before the test ran."
         )

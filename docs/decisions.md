@@ -322,7 +322,7 @@ fold.
   (0.3025 against 0.2987). D13 has a Platt step and the hazard model has none. The frozen weekly
   forecast stays the D13 model, as D18 says.
 - **The curve runs low, more so at longer horizons.** In the top tenth, the model said 78% and 82%
-  stayed silent at 3 months. At 2 years it said 33% and 47% stayed silent. A likely cause: quiet
+  stayed silent at 3 months. At 2 years it said 33% and 46% stayed silent. A likely cause: quiet
   became more common over time (8% of eligible repos at the 2017 cutoff, 16% from 2023), and the
   2-year interval learns only from older cutoffs. The method page says the 2-year numbers are
   likely on the low side. Fixing this would need a new pre-registered model, not a change to this
