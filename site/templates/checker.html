@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>Check your dependencies</h1>
+<p class="lede">Paste a <code>requirements.txt</code> or <code>pyproject.toml</code> to see how the packages your project needs are kept going, including the packages they need in turn.</p>
+<p class="small muted">Your file stays in your browser and is never uploaded. The page downloads the public data file for each package it finds, the same as opening that package's page.</p>
+<form id="chk" class="checker" onsubmit="return false">
+<label for="src">Your requirements</label>
+<textarea id="src" rows="10" spellcheck="false" autocomplete="off" placeholder="requests>=2.31
+pandas
+rich[jupyter]==13.7.1"></textarea>
+<div class="row">
+<button id="go" type="submit">Check</button>
+<label class="file">Or open a file <input id="file" type="file" accept=".txt,.toml,.in,.cfg,text/plain"></label>
+</div>
+</form>
+<div id="status" class="small" role="status" aria-live="polite"></div>
+<div id="out"></div>
+<details><summary>What this check can't show</summary>
+<ul>
+<li>It maps the top {{ n_packages|comma }} PyPI packages only. Anything else shows as not covered, and we don't follow what it needs. Not covered doesn't mean healthy.</li>
+<li>Dependencies come from each package's latest release, not the version you pinned. Optional extras aren't followed, and environment markers are ignored, so a package needed only on Windows still counts.</li>
+<li>Activity describes commits on the default branch. Quiet can mean finished. Few active contributors is no criticism of anyone.</li>
+<li>Lines it can't read, like <code>-r other.txt</code>, <code>-e</code> or a bare URL, are listed so you can check them yourself.</li>
+<li>One list is limited to 100 named packages. The results are ordered by how far down your tree a package sits, then by name, never by health.</li>
+</ul>
+</details>
+<script>
+(function () {
+  "use strict";
+  var MAX_NAMED = 100, MAX_TREE = 2000, ROOT = "../";
+  var form = document.getElementById("chk"), src = document.getElementById("src");
+  var file = document.getElementById("file"), statusEl = document.getElementById("status");
+  var out = document.getElementById("out"), go = document.getElementById("go");
+  var namesPromise = null, cache = {};
+
+  function canon(n) { return n.replace(/[-_.]+/g, "-").toLowerCase(); }
+
+  // The name at the start of one PEP 508 requirement, or null.
+  function reqName(line) {
+    line = line.trim();
+    if (!line || /^[a-z][a-z0-9+.-]*:\/\//i.test(line)) return null;
+    var m = line.match(/^([A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)\s*(\[[^\]]*\])?\s*(.*)$/);
+    if (!m) return null;
+    var rest = m[3];
+    if (rest && !/^(@|===|==|~=|!=|<=|>=|<|>|;|,|\()/.test(rest)) return null;
+    return canon(m[1]);
+  }
+
+  function fromRequirements(text, found, skipped) {
+    text.replace(/\\\r?\n/g, " ").split(/\r?\n/).forEach(function (raw) {
+      var line = raw.replace(/(^|\s)#.*$/, "").replace(/\s--hash[=\s]\S+/g, "").trim();
+      if (!line) return;
+      if (line.charAt(0) === "-") { skipped.push(line); return; }
+      var name = reqName(line);
+      if (name) found.push(name); else skipped.push(line);
+    });
+  }
+
+  // Quoted strings inside the array that starts at text[start] === "[".
+  function quotedInArray(text, start) {
+    var items = [], i = start + 1, depth = 1, q = null, buf = "";
+    for (; i < text.length && depth > 0; i++) {
+      var c = text.charAt(i);
+      if (q) {
+        if (c === "\\" && q === '"') { buf += text.charAt(++i); continue; }
+        if (c === q) { items.push(buf); buf = ""; q = null; } else buf += c;
+      } else if (c === '"' || c === "'") q = c;
+      else if (c === "#") { while (i < text.length && text.charAt(i) !== "\n") i++; }
+      else if (c === "[") depth++;
+      else if (c === "]") depth--;
+    }
+    return items;
+  }
+
+  function fromPyproject(text, found, skipped) {
+    var section = "", lines = text.split(/\r?\n/), offset = 0;
+    lines.forEach(function (line) {
+      var head = line.match(/^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$/);
+      if (head) section = head[1];
+      else if (section === "project" && /^\s*dependencies\s*=\s*\[/.test(line)) {
+        quotedInArray(text, text.indexOf("[", offset)).forEach(function (spec) {
+          var name = reqName(spec);
+          if (name) found.push(name); else skipped.push(spec);
+        });
+      } else if (section === "tool.poetry.dependencies") {
+        var m = line.match(/^\s*["']?([A-Za-z0-9][A-Za-z0-9._-]*)["']?\s*=/);
+        if (m && canon(m[1]) !== "python") found.push(canon(m[1]));
+      }
+      offset += line.length + 1;
+    });
+  }
+
+  function parse(text) {
+    var found = [], skipped = [];
+    if (/^\s*\[(project|tool\.poetry\.dependencies)\]\s*$/m.test(text)) fromPyproject(text, found, skipped);
+    else fromRequirements(text, found, skipped);
+    var seen = {}, names = [];
+    found.forEach(function (n) { if (!seen[n]) { seen[n] = 1; names.push(n); } });
+    return { names: names, skipped: skipped };
+  }
+
+  function getJSON(url) {
+    return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+  function known() {
+    if (!namesPromise) namesPromise = getJSON("names.json").then(function (list) {
+      var set = {}; (list || []).forEach(function (n) { set[n] = 1; }); return set;
+    });
+    return namesPromise;
+  }
+  function record(name) {
+    if (!cache[name]) cache[name] = getJSON(ROOT + "p/" + encodeURIComponent(name) + "/data.json");
+    return cache[name];
+  }
+
+  // Walk the tree one level at a time: what you named, then what those need, and so on.
+  function walk(named, covered) {
+    var nodes = {}, order = [], level = named.slice();
+    named.forEach(function (n) { nodes[n] = { name: n, depth: 0, via: [] }; order.push(n); });
+    function step(depth) {
+      if (!level.length || order.length >= MAX_TREE) return Promise.resolve();
+      var here = level; level = [];
+      return Promise.all(here.map(function (n) { return covered[n] ? record(n) : null; })).then(function (recs) {
+        recs.forEach(function (rec, i) {
+          var node = nodes[here[i]];
+          node.rec = rec;
+          if (!rec) return;
+          rec.requires.forEach(function (r) {
+            if (nodes[r]) { if (nodes[r].depth > depth && nodes[r].via.indexOf(node.name) < 0) nodes[r].via.push(node.name); return; }
+            if (order.length >= MAX_TREE) return;
+            nodes[r] = { name: r, depth: depth + 1, via: [node.name] };
+            order.push(r); level.push(r);
+          });
+        });
+        return step(depth + 1);
+      });
+    }
+    return step(0).then(function () {
+      return order.map(function (n) { return nodes[n]; }).sort(function (a, b) {
+        return a.depth - b.depth || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+      });
+    });
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function mark(n) { return el("span", "mark c" + (n || 0)); }
+  function plural(n, one, many) { return n.toLocaleString("en-US") + " " + (n === 1 ? one : many); }
+
+  function item(node, covered) {
+    var li = el("li"), rec = node.rec, line = el("span", "what");
+    if (rec) {
+      var a = el("a", null, node.name); a.href = ROOT + "p/" + encodeURIComponent(node.name) + "/"; li.appendChild(a);
+      line.appendChild(mark(rec.mark)); line.appendChild(document.createTextNode(rec.label));
+      if (rec.few) line.appendChild(document.createTextNode(" · Few active contributors"));
+      if (rec.chance !== null && rec.chance !== undefined) {
+        line.appendChild(document.createTextNode(" · "));
+        line.appendChild(mark(rec.band_mark));
+        line.appendChild(document.createTextNode((rec.chance === 0 ? "Under 1%" : rec.chance + "%") + " chance of no human commit in 12 months (" + rec.band.toLowerCase() + ")"));
+      }
+    } else {
+      li.appendChild(el("span", "name", node.name));
+      line.appendChild(mark(0));
+      line.appendChild(document.createTextNode(covered[node.name] ? "Couldn't load its data. Unknown, not healthy." : "Not in the top {{ n_packages|comma }}, so not covered. That doesn't mean healthy, and what it needs isn't followed."));
+    }
+    li.appendChild(line);
+    if (node.via.length) {
+      var via = node.via.slice().sort(), shown = via.slice(0, 3).join(", ");
+      li.appendChild(el("span", "via small muted", "Needed by " + shown + (via.length > 3 ? " and " + (via.length - 3) + " more" : "")));
+    }
+    return li;
+  }
+
+  function render(nodes, named, skipped, covered) {
+    out.textContent = "";
+    var count = { active: 0, slowing: 0, quiet: 0, archived: 0, unknown: 0, outside: 0 }, few = 0;
+    nodes.forEach(function (n) {
+      if (!n.rec) { if (covered[n.name]) count.unknown++; else count.outside++; return; }
+      count[n.rec.state] = (count[n.rec.state] || 0) + 1;
+      if (n.rec.few) few++;
+    });
+    out.appendChild(el("h2", null, "What your project relies on"));
+    out.appendChild(el("p", "lede", "You named " + plural(named, "package", "packages") + ". With everything they need in turn, that's " + plural(nodes.length, "package", "packages") + " in all."));
+    var dl = el("dl", "facts");
+    [["Active", count.active], ["Slowing down", count.slowing], ["Looks quiet", count.quiet], ["Archived by its owners", count.archived], ["Few active contributors", few], ["Unknown or not covered", count.unknown + count.outside]].forEach(function (f) {
+      var d = el("div"); d.appendChild(el("dt", null, f[0])); d.appendChild(el("dd", null, f[1].toLocaleString("en-US"))); dl.appendChild(d);
+    });
+    out.appendChild(dl);
+    out.appendChild(el("p", "small muted", "Few active contributors overlaps with the activity counts: it covers active and slowing projects where one person made half the commits, or two or fewer people committed."));
+    var groups = [["Named in your file", function (n) { return n.depth === 0; }], ["Needed by those", function (n) { return n.depth > 0; }]];
+    groups.forEach(function (g) {
+      var list = nodes.filter(g[1]);
+      if (!list.length) return;
+      out.appendChild(el("h3", null, g[0] + " (" + list.length.toLocaleString("en-US") + ")"));
+      var ul = el("ul", "deps");
+      list.forEach(function (n) { ul.appendChild(item(n, covered)); });
+      out.appendChild(ul);
+    });
+    if (nodes.length >= MAX_TREE) out.appendChild(el("p", "small muted", "The tree was cut off at " + MAX_TREE.toLocaleString("en-US") + " packages."));
+    if (skipped.length) {
+      out.appendChild(el("h3", null, "Lines we couldn't read (" + skipped.length + ")"));
+      var ul2 = el("ul", "small");
+      skipped.slice(0, 50).forEach(function (s) { ul2.appendChild(el("li", null, s.length > 120 ? s.slice(0, 120) + "…" : s)); });
+      out.appendChild(ul2);
+    }
+  }
+
+  function run() {
+    var parsed = parse(src.value);
+    out.textContent = "";
+    if (!parsed.names.length) { statusEl.textContent = "No package names found. Paste one requirement per line, or a pyproject.toml."; return; }
+    if (parsed.names.length > MAX_NAMED) { statusEl.textContent = "That's " + parsed.names.length + " packages. One check is limited to " + MAX_NAMED + " named packages, which covers a project's own list."; return; }
+    go.disabled = true;
+    statusEl.textContent = "Checking " + plural(parsed.names.length, "package", "packages") + "…";
+    known().then(function (covered) {
+      return walk(parsed.names, covered).then(function (nodes) {
+        render(nodes, parsed.names.length, parsed.skipped, covered);
+        statusEl.textContent = "Done.";
+        out.querySelector("h2").setAttribute("tabindex", "-1");
+        out.querySelector("h2").focus();
+      });
+    }).catch(function () {
+      statusEl.textContent = "Something went wrong loading the data. Try again.";
+    }).then(function () { go.disabled = false; });
+  }
+
+  form.addEventListener("submit", run);
+  file.addEventListener("change", function () {
+    var f = file.files && file.files[0];
+    if (!f) return;
+    if (f.size > 512000) { statusEl.textContent = "That file is too large for a requirements list."; return; }
+    var reader = new FileReader();
+    reader.onload = function () { src.value = String(reader.result); run(); };
+    reader.readAsText(f);
+  });
+  window.busfactorParse = parse;  // lets the page's own parser be checked from a test
+})();
+</script>
+{% endblock %}

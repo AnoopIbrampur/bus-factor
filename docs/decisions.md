@@ -269,3 +269,27 @@ year, so none of the candidates get one.
 - **Either way:** survival numbers are not added to the frozen weekly files, and the D13 model and
   `models.json` are not touched. The survival job writes only its own files (`survival.json`,
   `survival_model.json`).
+
+## D19. The dependency checker (2026-11-08)
+A page where someone pastes their own `requirements.txt` or `pyproject.toml` and sees how the
+packages their project needs are kept going. It's built so it can't turn into the list D10 and
+D17 keep off the site.
+
+- **No all-packages health file.** Health comes from one small `p/<name>/data.json` per package.
+  Each holds the same facts its page shows: activity, few active contributors, chance band, and
+  its required dependencies. The page fetches these only for packages in the pasted list and the
+  packages they need. The one shared file, `check/names.json`, is names only, in alphabetical
+  order. This exposes no more than the package pages already do.
+- **Ordered by depth, then name, never by health.** Summary counts are shown. There is no
+  "worst first" view and no filter combining quiet with few people.
+- **Limited to 100 named packages per check.** That covers a project's own list, and makes
+  pasting the whole top 5,000 tedious. It's a speed bump, not a wall. The packages page already
+  shows the same facts one at a time.
+- **Unknown is never healthy.** A name outside the top 5,000 shows as "not covered", and what it
+  needs isn't followed. A package whose data won't load shows as unknown.
+- **Parsing stays in the browser, and nothing is uploaded.** Requirements lines follow PEP 508
+  names (PEP 503 normalised, as `deps.canon` does). Options, `-r`, `-e` and bare URLs are listed
+  as unread. `pyproject.toml` support covers `[project].dependencies` and
+  `[tool.poetry.dependencies]` only.
+- **Dependencies come from each package's latest release (D9).** Required only, extras not
+  followed, markers ignored.

@@ -183,6 +183,14 @@ def write_fixture(data: Path) -> None:
         ]
     ).to_parquet(data / "simulator.parquet")
     (data / "site_context.json").write_text(json.dumps(sample_context()))
+    pd.DataFrame(
+        {
+            "name": ["alpha", "Beta"],
+            "found": [True, True],
+            "declared": [True, False],
+            "requires": [["Beta", "outside_pkg"], []],
+        }
+    ).to_parquet(data / "requires.parquet")
 
 
 def test_site_renders_and_unknown_is_never_healthy(tmp_path):
@@ -221,3 +229,28 @@ def test_packages_page_offers_no_health_sort_or_combined_filter(tmp_path):
 def test_a_failed_test_reads_as_a_failure():
     ctx = sample_context()
     assert "Not better than a simple rule" in ctx["result_summary"]
+
+
+def test_checker_files_hold_page_facts_only(tmp_path):
+    write_fixture(tmp_path)
+    out = tmp_path / "out"
+    site.build(tmp_path, out)
+    assert (out / "check/index.html").exists()
+    names = json.loads((out / "check/names.json").read_text())
+    assert names == ["alpha", "beta"]  # names only, alphabetical, no health
+    alpha = json.loads((out / "p/alpha/data.json").read_text())
+    assert alpha["requires"] == ["beta", "outside-pkg"]
+    assert alpha["state"] == "unknown" and alpha["chance"] is None
+    beta = json.loads((out / "p/beta/data.json").read_text())
+    assert set(beta) == {
+        "name",
+        "state",
+        "label",
+        "mark",
+        "few",
+        "chance",
+        "band",
+        "band_mark",
+        "requires",
+    }
+    assert beta["few"] is True and beta["chance"] == 20

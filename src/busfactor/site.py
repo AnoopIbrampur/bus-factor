@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
+from .deps import canon
+
 TEMPLATES = Path("site/templates")
 STATIC = Path("site/static")
 LIST_LIMIT = 200
@@ -67,6 +69,34 @@ def write(out: Path, rel: str, html: str) -> None:
     path.write_text(html)
 
 
+def requirement_lists(requires: pd.DataFrame) -> dict[str, list[str]]:
+    """Each package's required dependencies by PEP 503 name, from its latest release."""
+    out = {}
+    for name, reqs in zip(requires["name"], requires["requires"], strict=True):
+        names = [] if reqs is None else [canon(r) for r in reqs]
+        out[canon(name)] = sorted(set(names))
+    return out
+
+
+def checker_record(p: dict, requires: list[str]) -> dict:
+    """What the dependency checker reads for one package: the same facts its page shows.
+
+    One small file per package, fetched only for packages in someone's list, so there is never a
+    single file of every package's health to sort (D17, D19). No people, no repo, no hashes.
+    """
+    return {
+        "name": p["name"],
+        "state": p["state"],
+        "label": p["state_label"],
+        "mark": p["state_class"],
+        "few": bool(p["few_people"]),
+        "chance": p["prob_pct"],
+        "band": p["band_label"],
+        "band_mark": p["band_class"],
+        "requires": requires,
+    }
+
+
 def summary(pkgs: list[dict]) -> dict:
     known = [p for p in pkgs if p["has_history"]]
     n_bf1 = sum(1 for p in known if p["bus_factor"] == 1)
@@ -87,6 +117,7 @@ def build(data_dir: Path, out: Path) -> None:
     table = pd.read_parquet(data_dir / "site_packages.parquet")
     context = json.loads((data_dir / "site_context.json").read_text())
     sim = pd.read_parquet(data_dir / "simulator.parquet").set_index("name")
+    requires = requirement_lists(pd.read_parquet(data_dir / "requires.parquet"))
     pkgs = records(table.sort_values("rank"))
     if out.exists():
         shutil.rmtree(out)
@@ -127,9 +158,13 @@ def build(data_dir: Path, out: Path) -> None:
     )
     page("track.html", "track-record/index.html", "../", "Track record", "track", ctx=context)
     page("method.html", "method/index.html", "../", "Method and limits", "method", ctx=context)
+    page("checker.html", "check/index.html", "../", "Check your dependencies", "checker")
+    # The checker's name list: names only, alphabetical, nothing about health (D19).
+    write(out, "check/names.json", json.dumps(sorted(p["name"] for p in pkgs)))
     for p in pkgs:
         name = p["name"]
         page("package.html", f"p/{name}/index.html", "../../", name, "packages", p=p)
+        write(out, f"p/{name}/data.json", json.dumps(checker_record(p, requires.get(name, []))))
         row = sim.loc[name] if name in sim.index else None
         direct = list(row["direct"]) if row is not None else []
         indirect = list(row["indirect"]) if row is not None else []

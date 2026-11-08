@@ -13,7 +13,7 @@
 <header class="site"><div class="wrap">
 <a class="brand" href="{{ root }}">Internet Bus Factor</a>
 <nav class="main" aria-label="Main">
-{% for href, label, key in [('', 'Overview', 'home'), ('packages/', 'Packages', 'packages'), ('simulator/', 'Simulator', 'simulator'), ('track-record/', 'Track record', 'track'), ('method/', 'Method and limits', 'method')] %}<a href="{{ root }}{{ href }}"{% if active == key %} aria-current="page"{% endif %}>{{ label }}</a>
+{% for href, label, key in [('', 'Overview', 'home'), ('packages/', 'Packages', 'packages'), ('simulator/', 'Simulator', 'simulator'), ('check/', 'Check your dependencies', 'checker'), ('track-record/', 'Track record', 'track'), ('method/', 'Method and limits', 'method')] %}<a href="{{ root }}{{ href }}"{% if active == key %} aria-current="page"{% endif %}>{{ label }}</a>
 {% endfor %}</nav>
 </div></header>
 <main id="content" class="wrap">

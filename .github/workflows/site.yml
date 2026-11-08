@@ -28,7 +28,7 @@ jobs:
       - name: Pull site inputs
         run: |
           scripts/state.sh pull site_packages.parquet.enc data/site_packages.parquet
-          for F in simulator.parquet site_context.json; do
+          for F in simulator.parquet site_context.json requires.parquet; do
             scripts/state.sh pull "$F" "data/$F"
           done
           test -f data/site_packages.parquet
