@@ -441,3 +441,54 @@ would need its own pre-registration first.
   - Known confounders are listed next to the numbers: npm's many small packages per repo,
     monorepos (for example one repo behind all `@types` packages), downloads that count CI
     differently, and different release habits.
+
+## D24. Result of the D21 test: recalibration did not pass (2026-11-08)
+Run 42508114181, same pinned inputs and 36,176 items as D20.
+
+**Result.** Pooled log loss was 0.3464 for the recalibrated curve and 0.3479 for the D18 curve.
+The gain was 0.0015, with a CI of −0.0002 to 0.0032. The lower bound isn't above zero, so
+**under D21 the D18 curve stays on the site.**
+
+**What recalibration did fix.** Top-tenth calibration got much closer at every horizon, which
+D21 reported without letting it decide.
+
+| Horizon | D18 curve said | Recalibrated said | Stayed silent |
+|---|---|---|---|
+| 3 months | 78% | 82% | 82% |
+| 12 months | 47% | 55% | 57% |
+| 2 years | 33% | 42% | 45% |
+
+**Reading it.** The low numbers were mostly a level problem in the highest-chance projects. Fixing
+the level barely moves the pooled log loss, because most items are projects with low chances.
+The rule was log loss, so the curve keeps its known low bias, and the method page says so with
+these numbers. A later model with a different rule would need its own pre-registration.
+
+## D25. Result of the D22 revival test: passed, narrowly (2026-11-08)
+Run 42508120631: 4,745 quiet project-years from 1,813 repos, of which 794 had a human commit
+again within 12 months. The share that came back each test year: 22% (2022), 16% (2023), 14%
+(2024) and 16% (2025).
+
+**Results.**
+
+| Method | Log loss | ROC-AUC |
+|---|---|---|
+| Logistic | 0.4016 | 0.735 |
+| Days since last human commit (best baseline) | 0.4052 | 0.729 |
+| LightGBM | 0.4105 | — |
+| Releases in the past year | 0.4527 | — |
+
+**Gains, with 95% CIs.**
+- Logistic over the best baseline: 0.0036, CI 0.0011 to 0.0062.
+- LightGBM over logistic: −0.0088, CI −0.0127 to −0.0052.
+
+**Under D22, the logistic model passes and is published.**
+
+**Reading it honestly.**
+- **The gain is small.** Almost all of what can be predicted is how long the project has already
+  been quiet: the longer the silence, the less likely a return. The other features add a sliver.
+  The site says this in so many words.
+- **Within 12 months, about 1 in 6 quiet projects comes back.** The "4 in 10" in the audit counts
+  returns at any later time.
+- **Live use needs fresh release days.** The pinned release days stop at 2026-11-07 and cover
+  only cohort packages. The weekly job therefore refetches PyPI release days for the packages of
+  repos that look quiet today, before scoring. That's a few hundred PyPI requests.

@@ -7,7 +7,20 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import build, deps, forecast, harvest, live, narrative, revival, site, survival, universe
+from . import (
+    build,
+    compare,
+    deps,
+    forecast,
+    harvest,
+    live,
+    narrative,
+    npm,
+    revival,
+    site,
+    survival,
+    universe,
+)
 from .config import DATA_DIR, PRIVATE_DIR, SURVIVAL_AS_OF, TEST_CUTOFFS, TRAIN_CUTOFFS
 from .health import FEATURES, day_number, measures_at
 from .repos import host_of, normalize_repo_url, repo_key
@@ -34,13 +47,32 @@ def cmd_plan(args) -> None:
     req.to_parquet(DATA_DIR / "requires.parquet", index=False)
     universe.save(top, DATA_DIR / "universe.parquet")
     current = pd.read_parquet(PRIVATE_DIR / "repo_map.parquet")
+    npm_map = plan_npm()
     cohort_path = PRIVATE_DIR / "cohort_map.parquet"
-    frames = [current]
+    frames = [current, npm_map]
     if cohort_path.exists():
         frames.append(pd.read_parquet(cohort_path))
     targets = pd.concat(frames, ignore_index=True).drop_duplicates("repo_key")
     targets.to_parquet(PRIVATE_DIR / "targets.parquet", index=False)
     print(f"{len(top)} packages, {len(current)} current repos, {len(targets)} targets")
+
+
+def plan_npm() -> pd.DataFrame:
+    """The npm top list and dependencies (D23). Returns its private repo map."""
+    top = universe.fetch_top(registry="npmjs.org")
+    req = npm.fetch_requires(top["name"].tolist())
+    hints = dict(zip(req["name"], req["repo_hint"], strict=True))
+    gaps = top["_url"].isna()
+    filled = [hints.get(npm.norm(n)) for n in top.loc[gaps, "name"]]
+    top["_url"] = top["_url"].astype(object)
+    top.loc[gaps, "_url"] = pd.Series(filled, index=top.index[gaps], dtype=object)
+    top.loc[gaps, "repo_key"] = [repo_key(u) if isinstance(u, str) else None for u in filled]
+    top.loc[gaps, "host"] = [host_of(u) if isinstance(u, str) else None for u in filled]
+    req.drop(columns=["repo_hint"]).to_parquet(DATA_DIR / "npm_requires.parquet", index=False)
+    private_path = PRIVATE_DIR / "npm_repo_map.parquet"
+    universe.save(top, DATA_DIR / "npm_universe.parquet", private_path)
+    print(f"npm: {len(top)} packages, {top['repo_key'].notna().sum()} with a repo")
+    return pd.read_parquet(private_path)
 
 
 def cmd_harvest(args) -> None:
@@ -284,11 +316,55 @@ def cmd_weekly(args) -> None:
             print(f"survival curve skipped: {err!r}")
             extra = []
     forecast_cols = eligible[["repo_key", "prob", "reasons", *extra]]
+    revive = revival_scores(now, archived, tracked, names, today)
+    if revive is not None and len(revive):
+        forecast_cols = pd.concat([forecast_cols, revive], ignore_index=True)
     table, sim = build.assemble(universe_df, requires, rows, today, forecast_cols)
     table.to_parquet(DATA_DIR / "site_packages.parquet", index=False)
     sim.to_parquet(DATA_DIR / "simulator.parquet", index=False)
     context = narrative.context(backtest, track, today, specs["primary"]["name"])
     forecast.save_json(context, DATA_DIR / "site_context.json")
+
+    npm_path = DATA_DIR / "npm_universe.parquet"
+    if npm_path.exists():  # D23: map and health only, never a forecast
+        npm_u = pd.read_parquet(npm_path)
+        npm_req = pd.read_parquet(DATA_DIR / "npm_requires.parquet")
+        npm_table, npm_sim = build.assemble(npm_u, npm_req, rows, today, None, norm=npm.norm)
+        npm_table.to_parquet(DATA_DIR / "npm_site_packages.parquet", index=False)
+        npm_sim.to_parquet(DATA_DIR / "npm_simulator.parquet", index=False)
+        result = compare.compare(table, npm_table)
+        forecast.save_json({**result, "updated": today.isoformat()}, DATA_DIR / "compare.json")
+
+
+def revival_scores(now, archived, rows, names, today) -> pd.DataFrame | None:
+    """D22/D25: chance of a human commit again within 12 months, for repos that look quiet.
+
+    Not part of the frozen record, and never allowed to stop the weekly job. Release days are
+    refetched from PyPI for today's quiet packages, because the pinned ones stop at the as-of
+    date and cover cohort packages only.
+    """
+    path = DATA_DIR / "revival_model.json"
+    if not path.exists():
+        return None
+    try:
+        spec = json.loads(path.read_text())
+        quiet = now[(now["commits_365d"] == 0) & ~now["repo_key"].isin(archived)]
+        pkgs = names[names["repo_key"].isin(set(quiet["repo_key"]))]
+        days = deps.fetch_release_days(pkgs["name"].tolist())
+        keys = dict(zip(pkgs["name"], pkgs["repo_key"], strict=True))
+        days["repo_key"] = days["name"].map(keys)
+        frame = revival.live_frame(quiet, rows, days[["repo_key", "day"]], today)
+        prob = live.predict(spec, frame)
+        out = pd.DataFrame({"repo_key": frame["repo_key"].to_numpy(), "revive_prob": prob})
+        labels = [build.band(p) for p in prob]
+        out["revive_pct"] = [round(100 * float(p)) for p in prob]
+        out["revive_band"] = [b[0] for b in labels]
+        out["revive_mark"] = [b[1] for b in labels]
+        print(f"revival scored {len(out)} quiet repos")
+        return out
+    except Exception as err:  # noqa: BLE001
+        print(f"revival skipped: {err!r}")
+        return None
 
 
 def cmd_site(args) -> None:

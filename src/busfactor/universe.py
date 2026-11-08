@@ -14,7 +14,7 @@ from .config import PRIVATE_DIR, TOP_N
 from .http import Client
 from .repos import host_of, normalize_repo_url, repo_key
 
-LIST_URL = "https://packages.ecosyste.ms/api/v1/registries/pypi.org/packages"
+LIST_URL = "https://packages.ecosyste.ms/api/v1/registries/{registry}/packages"
 PER_PAGE = 1000
 
 
@@ -52,13 +52,15 @@ def slim(item: dict) -> dict:
     }
 
 
-def fetch_top(client: Client | None = None, top_n: int = TOP_N) -> pd.DataFrame:
+def fetch_top(
+    client: Client | None = None, top_n: int = TOP_N, registry: str = "pypi.org"
+) -> pd.DataFrame:
     """Fetch the ranked list page by page. Fails loudly on a short page."""
     client = client or Client()
     rows: list[dict] = []
     for page in range(1, top_n // PER_PAGE + 2):
         r = client.get(
-            LIST_URL,
+            LIST_URL.format(registry=registry),
             params={"sort": "downloads", "order": "desc", "per_page": PER_PAGE, "page": page},
         )
         items = r.json() if r else []

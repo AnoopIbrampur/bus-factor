@@ -39,11 +39,15 @@ jobs:
       - run: uv sync --frozen
       - name: Pull the latest state
         run: |
-          for A in universe requires; do scripts/state.sh pull "$A.parquet" "data/$A.parquet"; done
+          for A in universe requires npm_universe npm_requires; do scripts/state.sh pull "$A.parquet" "data/$A.parquet"; done
           scripts/state.sh pull models.json data/models.json
           scripts/state.sh pull backtest.json data/backtest.json
           scripts/state.sh pull survival_model.json data/survival_model.json
           scripts/state.sh pull survival.json data/survival.json
+          scripts/state.sh pull survival_recal.json data/survival_recal.json
+          scripts/state.sh pull revival.json data/revival.json
+          scripts/state.sh pull revival_model.json data/revival_model.json
+          scripts/state.sh pull survival-release_days.parquet data/release_days.parquet
           for S in 0 1 2 3 4 5; do
             scripts/state.sh pull "rows-$S.parquet.enc" "data/rows-$S.parquet"
             scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"
@@ -70,6 +74,11 @@ jobs:
             scripts/state.sh push "data/$F" "$F"
           done
           scripts/state.sh push data/site_packages.parquet site_packages.parquet.enc
+          if [ -f data/npm_site_packages.parquet ]; then
+            scripts/state.sh push data/npm_site_packages.parquet npm_site_packages.parquet.enc
+            scripts/state.sh push data/npm_simulator.parquet npm_simulator.parquet
+            scripts/state.sh push data/compare.json compare.json
+          fi
       - name: Build the site
         run: uv run busfactor site --out _site
       - uses: actions/upload-pages-artifact@v3

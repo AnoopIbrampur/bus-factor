@@ -79,10 +79,11 @@ def assemble(
     rows: pd.DataFrame,
     today: date,
     forecast: pd.DataFrame | None = None,
+    norm=canon,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Return (package table, simulator table)."""
+    """Return (package table, simulator table). `norm` is the ecosystem's name rule."""
     u = universe.copy()
-    u["name"] = u["name"].map(canon)
+    u["name"] = u["name"].map(norm)
     u = u.drop_duplicates("name")
     downloads = dict(zip(u["name"], u["downloads"].fillna(0).astype(int), strict=True))
     graph = edges(requires, set(u["name"]))

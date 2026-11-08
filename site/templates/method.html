@@ -47,7 +47,22 @@
 {% if surv.at_year %}<p>At 12 months alone, the {{ surv.shown_label|lower }} scored {{ '%.3f'|format(surv.at_year[surv.shown]) }} against {{ '%.3f'|format(surv.at_year.d13_lightgbm) }} for the 12-month model behind the weekly forecast, refitted in the same run. The weekly forecast keeps using its own frozen model either way.</p>{% endif %}
 </details>
 {% if surv.top_tenth %}<p>The curve runs low, more so at longer horizons. Among the tenth of projects it gave the highest chance, it said {% for t in surv.top_tenth %}{{ '%.0f'|format(100 * t.said) }}% for {{ t.label }} where {{ '%.0f'|format(100 * t.saw) }}% stayed silent{{ ', ' if not loop.last else '' }}{% endfor %}. Projects have gone quiet more often in recent years than in the older years the long horizons learn from, and unlike the 12-month forecast this model has no recalibration step. Read the 2-year numbers as likely on the low side. The 12-month chance shown on the site comes from the calibrated model above, not from this curve.</p>{% endif %}
+{% if surv.recal %}<p>{{ surv.recal.text }}</p>{% endif %}
 {% if surv.passed and surv.n_curves %}<p class="small muted">Package pages show this curve at 3 months, 6 months and 2 years, next to the frozen 12-month forecast. Because the two come from different models, a point is nudged when needed so the chances stay in order: {{ surv.n_adjusted|comma }} of {{ surv.n_curves|comma }} packages had at least one point nudged, and for {{ surv.n_visible|comma }} the nudge changed the whole percent shown. Most nudges are a fraction of a point. The curve isn't part of the frozen weekly record.</p>{% endif %}
+{% endif %}
+{% if rev %}<h2>Do quiet projects come back?</h2>
+<p>A third test, also written down before it ran, looked only at projects with no human commit in the past year, and asked which would have one again within the next 12 months. {{ rev.summary }}</p>
+<dl class="facts">
+<div><dt>Quiet project-years tested</dt><dd>{{ rev.n|comma }}</dd><div class="note">{{ rev.positives|comma }} came back within 12 months</div></div>
+<div><dt>Came back within 12 months, by year</dt><dd class="text">{% for r in rev.rates %}{{ '%.0f'|format(100 * r.rate) }}%{{ ', ' if not loop.last }}{% endfor %}</dd><div class="note">Test years {% for r in rev.rates %}{{ r.year }}{{ ', ' if not loop.last }}{% endfor %}</div></div>
+<div><dt>Improvement, 95% interval</dt><dd class="text">{{ '%.4f'|format(rev.gain.ci[0]) }} to {{ '%.4f'|format(rev.gain.ci[1]) }}</dd><div class="note">Passing needed this to stay above zero</div></div>
+</dl>
+<details><summary>Every method</summary>
+<div class="scroll"><table><thead><tr><th>Method</th><th class="num">Log loss</th><th class="num">ROC-AUC</th></tr></thead>
+<tbody>{% for m in rev.rows %}<tr><td>{{ m.label }}</td><td class="num">{{ '%.3f'|format(m.log_loss) }}</td><td class="num">{{ '%.3f'|format(m.roc_auc) }}</td></tr>
+{% endfor %}</tbody></table></div>
+<p>The hand check found about 4 in 10 quiet projects returning at some point. Within a single year, it's closer to 1 in 6.</p>
+</details>
 {% endif %}
 <h2>How people are counted</h2>
 <p>Git histories are read on GitHub's servers. Author emails and names are hashed in memory with a throwaway salt, merged when they obviously belong to one person, and replaced by a number that only means something inside one repo. Nothing identifying is stored or published.</p>

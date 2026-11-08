@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block body %}
+<p class="small"><a href="{{ root }}npm/">npm packages</a></p>
+<h1>{{ p.name }}</h1>
+<p class="lede"><span class="mark c{{ p.state_class }}"></span>{{ p.state_label }}.
+{% if p.state == 'unknown' %}{{ p.unknown_reason }} Unknown doesn't mean healthy.
+{% elif p.state == 'archived' %}Its owners have marked the repository read-only, which often means a project is complete or has moved.
+{% elif p.state == 'quiet' %}No human commit in the past year. That can mean finished software.
+{% else %}{{ p.active_humans }} {{ 'person' if p.active_humans == 1 else 'people' }} committed in the past year{% if p.bus_factor %}, and {{ p.bus_factor }} of them made half of those commits{% endif %}.{% endif %}</p>
+<dl class="facts">
+<div><dt>Monthly downloads</dt><dd>{{ p.downloads|short }}</dd></div>
+<div><dt>Packages that need it</dt><dd>{{ p.total_dependents|comma }}</dd><div class="note">Within the top {{ n_npm|comma }} npm packages</div></div>
+<div><dt>Forecast</dt><dd class="text">None for npm</dd><div class="note">The forecasts were tested on PyPI only</div></div>
+</dl>
+{% if p.has_history %}<h2>Health, past year</h2>
+<div class="scroll"><table class="kv">
+<tbody>
+<tr><td>Active people</td><td class="num">{{ p.active_humans }}</td></tr>
+<tr><td>People with 4 or more commits</td><td class="num">{{ p.regular_humans }}</td></tr>
+<tr><td>People making half the commits</td><td class="num">{{ p.bus_factor }}</td></tr>
+<tr><td>Top contributor's share of commits</td><td class="num">{{ p.top_share_pct }}%</td></tr>
+<tr><td>Human commits</td><td class="num">{{ p.commits_365d|comma }}</td></tr>
+<tr><td>Human commits, year before</td><td class="num">{{ p.commits_prev_365d|comma }}</td></tr>
+<tr><td>Days since last human commit</td><td class="num">{{ p.days_since_human|comma }}</td></tr>
+<tr><td>Changes of top contributor, last 3 years</td><td class="num">{{ p.handovers_3y }}</td></tr>
+<tr><td>Commits made by automation</td><td class="num">{{ p.bot_share_pct }}%</td></tr>
+</tbody></table></div>{% endif %}
+{% if p.direct or p.indirect %}<h2>If it stopped</h2>
+<p>{{ p.n_direct|comma }} tracked npm {{ 'package needs' if p.n_direct == 1 else 'packages need' }} it directly, and {{ p.n_indirect|comma }} more through them.</p>
+{% if p.direct %}<details><summary>Direct dependents</summary><p class="small">{% for d in p.direct %}<a href="{{ root }}npm/p/{{ d }}/">{{ d }}</a>{{ ', ' if not loop.last }}{% endfor %}{% if p.direct_more %}, and more{% endif %}</p></details>{% endif %}
+{% if p.indirect %}<details><summary>Indirect dependents</summary><p class="small">{% for d in p.indirect %}<a href="{{ root }}npm/p/{{ d }}/">{{ d }}</a>{{ ', ' if not loop.last }}{% endfor %}{% if p.indirect_more %}, and more{% endif %}</p></details>{% endif %}
+{% endif %}
+<details><summary>What this page can't show</summary>
+<ul>
+<li>Reviews, issue triage, support, releases and paid work don't appear in commits.</li>
+{% if p.shared_repo > 1 %}<li>This package shares its repo with {{ p.shared_repo - 1 }} other tracked npm {{ 'package' if p.shared_repo == 2 else 'packages' }}, so these numbers describe the whole repo.</li>{% endif %}
+<li>Dependents stop at the top {{ n_npm|comma }} npm packages, and count only <code>dependencies</code>, not dev or peer dependencies.</li>
+</ul></details>
+<p class="small"><a href="https://www.npmjs.com/package/{{ p.name }}">{{ p.name }} on npm</a></p>
+{% endblock %}

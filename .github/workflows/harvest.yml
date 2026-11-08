@@ -38,6 +38,8 @@ jobs:
           uv run busfactor plan
           scripts/state.sh push data/universe.parquet universe.parquet
           scripts/state.sh push data/requires.parquet requires.parquet
+          scripts/state.sh push data/npm_universe.parquet npm_universe.parquet
+          scripts/state.sh push data/npm_requires.parquet npm_requires.parquet
           scripts/state.sh push data/private/targets.parquet targets.parquet.enc
   shard:
     needs: plan

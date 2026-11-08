@@ -21,6 +21,12 @@
 </dl>
 <p class="small muted">From a second model tested on past years, described on the <a href="../../method/">method page</a>. It isn't part of the frozen weekly record.{% if p.s_adjusted %} * Nudged to stay in order with the 12-month forecast, which comes from a different model.{% endif %}</p>
 {% endif %}
+{% if p.state == 'quiet' and p.revive_pct is defined and p.revive_pct is not none %}<h2>Will it come back?</h2>
+<dl class="facts">
+<div><dt>Chance of a human commit again within 12 months</dt><dd>{{ p.revive_pct }}%</dd><div class="note"><span class="mark c{{ p.revive_mark }}"></span>{{ p.revive_band }}</div></div>
+</dl>
+<p class="small muted">From a third model tested on past years, described on the <a href="../../method/">method page</a>. Most of what it knows is how long the project has been quiet, so treat it as a rough guide. It isn't part of the frozen weekly record. Quiet can also mean finished.</p>
+{% endif %}
 {% if p.reasons %}<h2>Why the forecast says this</h2>
 <ul>{% for r in p.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
 <p class="small muted">These are statistical associations across many projects. They are not causes, and they say nothing about the people involved.</p>{% endif %}

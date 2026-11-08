@@ -98,6 +98,39 @@ def checker_record(p: dict, requires: list[str]) -> dict:
     }
 
 
+def dependents(sim: pd.DataFrame, name: str) -> dict:
+    """Dependents lists for one package page, capped so pages stay small."""
+    row = sim.loc[name] if name in sim.index else None
+    direct = list(row["direct"]) if row is not None else []
+    indirect = list(row["indirect"]) if row is not None else []
+    return {
+        "n_direct": len(direct),
+        "n_indirect": len(indirect),
+        "direct": direct[:LIST_LIMIT],
+        "indirect": indirect[:LIST_LIMIT],
+        "direct_more": len(direct) > LIST_LIMIT,
+        "indirect_more": len(indirect) > LIST_LIMIT,
+    }
+
+
+def build_npm(data_dir: Path, out: Path, page) -> None:
+    """The npm list, its pages and the comparison (D23). Skipped until npm data exists."""
+    path = data_dir / "npm_site_packages.parquet"
+    if not path.exists():
+        return
+    pkgs = records(pd.read_parquet(path).sort_values("rank"))
+    sim = pd.read_parquet(data_dir / "npm_simulator.parquet").set_index("name")
+    cmp_path = data_dir / "compare.json"
+    cmp = narrative.compare_context(json.loads(cmp_path.read_text())) if cmp_path.exists() else None
+    page("npm.html", "npm/index.html", "../", "npm packages", "npm", pkgs=pkgs, cmp=cmp)
+    for p in pkgs:
+        rel = f"npm/p/{p['name']}/index.html"
+        q = {**p, **dependents(sim, p["name"])}
+        page(
+            "npm_package.html", rel, "../" * rel.count("/"), p["name"], "npm", p=q, n_npm=len(pkgs)
+        )
+
+
 def summary(pkgs: list[dict]) -> dict:
     known = [p for p in pkgs if p["has_history"]]
     n_bf1 = sum(1 for p in known if p["bus_factor"] == 1)
@@ -165,6 +198,12 @@ def build(data_dir: Path, out: Path) -> None:
         n_visible = sum(1 for p in pkgs if p.get("s730") is not None and p.get("s_visible"))
         result = json.loads((data_dir / "survival.json").read_text())
         surv = narrative.survival_context(result, n_curves, n_adjusted, n_visible)
+        recal_path = data_dir / "survival_recal.json"
+        surv["recal"] = None
+        if recal_path.exists():
+            surv["recal"] = narrative.recal_context(json.loads(recal_path.read_text()))
+    rev_path = data_dir / "revival.json"
+    rev = narrative.revival_context(json.loads(rev_path.read_text())) if rev_path.exists() else None
     page(
         "method.html",
         "method/index.html",
@@ -173,10 +212,12 @@ def build(data_dir: Path, out: Path) -> None:
         "method",
         ctx=context,
         surv=surv,
+        rev=rev,
     )
     page("checker.html", "check/index.html", "../", "Check your dependencies", "checker")
     # The checker's name list: names only, alphabetical, nothing about health (D19).
     write(out, "check/names.json", json.dumps(sorted(p["name"] for p in pkgs)))
+    build_npm(data_dir, out, page)
     for p in pkgs:
         name = p["name"]
         page("package.html", f"p/{name}/index.html", "../../", name, "packages", p=p)

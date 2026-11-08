@@ -174,3 +174,101 @@ def survival_context(
             if h != "365"  # the site's 12-month chance comes from the calibrated D13 model
         ],
     }
+
+
+def compare_context(result: dict) -> dict:
+    """Table rows for the PyPI and npm comparison, with D23's wording rule built in."""
+    from .compare import LABELS
+
+    def fmt(m: str, v) -> str:
+        if v is None or v != v:
+            return "n/a"
+        return f"{v:.0f}" if m == "median_active" else f"{100 * v:.0f}%"
+
+    out = {}
+    for key, block in result.items():
+        if not isinstance(block, dict) or "measures" not in block:
+            continue
+        rows = []
+        for m, r in block["measures"].items():
+            if r["different"]:
+                verdict = "npm higher" if r["diff_ci"][0] > 0 else "npm lower"
+            else:
+                verdict = "No clear difference"
+            rows.append(
+                {
+                    "label": LABELS[m],
+                    "pypi": fmt(m, r["pypi"]),
+                    "npm": fmt(m, r["npm"]),
+                    "verdict": verdict,
+                }
+            )
+        out[key] = {"n_pypi": block["n_pypi"], "n_npm": block["n_npm"], "rows": rows}
+    return out
+
+
+def recal_context(result: dict) -> dict:
+    """The D21 attempt to recalibrate the curve, in sentences built from its result file."""
+    gain = result["recal_vs_d18"]
+    top = result["top_tenth"]["730"]
+    verdict = (
+        "It passed, so the site now uses it."
+        if result["passed"]
+        else "That gain wasn't clearly above zero, so under the rule written in advance the "
+        "original curve stays."
+    )
+    return {
+        "text": (
+            f"A second attempt (D21) added a recalibration step. It brought the 2-year top tenth "
+            f"to {100 * top['lightgbm_recal']['mean_predicted']:.0f}% said against "
+            f"{100 * top['lightgbm_recal']['observed']:.0f}% observed, and improved log loss by "
+            f"{gain['gain']:.4f} (95% interval {gain['ci'][0]:.4f} to {gain['ci'][1]:.4f}). "
+            f"{verdict}"
+        ),
+        "passed": result["passed"],
+    }
+
+
+REVIVAL_LABELS = {
+    "logistic": "Logistic model",
+    "lightgbm": "LightGBM model",
+    "days_since_human": "Days since last human commit",
+    "releases_365d": "Releases in the past year",
+}
+
+
+def revival_context(result: dict) -> dict:
+    """Sentences and rows for the D22 revival test, from its result file alone."""
+    best = result["best_baseline"]
+    pub = result["published_model"]
+    shown = pub or "logistic"
+    gain = result[
+        "lightgbm_vs_best_baseline" if shown == "lightgbm" else "logistic_vs_best_baseline"
+    ]
+    o = result["overall"]
+    rates = result["revival_rate_by_year"]
+    if result["passed"]:
+        summary = (
+            f"Yes, but only just. The {REVIVAL_LABELS[shown].lower()} beat the best simple rule "
+            f"({REVIVAL_LABELS[best].lower()}): log loss {o[shown]['log_loss']:.3f} against "
+            f"{o[best]['log_loss']:.3f}. Almost all of what can be predicted is how long a "
+            f"project has already been quiet."
+        )
+    else:
+        summary = (
+            f"No. Nothing clearly beat the simple rule ({REVIVAL_LABELS[best].lower()}): log loss "
+            f"{o[shown]['log_loss']:.3f} against {o[best]['log_loss']:.3f}. So package pages "
+            f"don't show a chance of coming back."
+        )
+    return {
+        "summary": summary,
+        "passed": result["passed"],
+        "gain": gain,
+        "n": result["n_rows"],
+        "positives": o[shown]["positives"],
+        "rates": [{"year": y[:4], "rate": r} for y, r in sorted(rates.items())],
+        "rows": [
+            {"label": REVIVAL_LABELS[k], "log_loss": v["log_loss"], "roc_auc": v["roc_auc"]}
+            for k, v in o.items()
+        ],
+    }

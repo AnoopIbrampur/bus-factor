@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block body %}
+<h1>npm packages</h1>
+<p class="lede">The top {{ pkgs|length|comma }} npm packages by monthly downloads, measured the same way as the PyPI list. There is no forecast for npm: the forecasts were tested on PyPI only.</p>
+{% if cmp %}<h2>PyPI and npm, side by side</h2>
+<p>Among the most downloaded packages in each ecosystem, counted per package. The measures and the rule for calling something a difference were written down before any npm number was seen. A difference counts only if its 95% interval leaves out zero.</p>
+{% macro table(block, caption) %}<div class="scroll"><table><caption>{{ caption }}: {{ block.n_pypi|comma }} PyPI and {{ block.n_npm|comma }} npm</caption>
+<thead><tr><th>Measure</th><th class="num">PyPI</th><th class="num">npm</th><th>Difference</th></tr></thead>
+<tbody>{% for r in block.rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.pypi }}</td><td class="num">{{ r.npm }}</td><td>{{ r.verdict }}</td></tr>
+{% endfor %}</tbody></table></div>{% endmacro %}
+{{ table(cmp.top_all_package, "Top 5,000, per package") }}
+<details><summary>Counted per repo, and the top 100</summary>
+{{ table(cmp.top_all_repo, "Top 5,000, each repo once") }}
+{{ table(cmp.top_100_package, "Top 100, per package") }}
+{{ table(cmp.top_100_repo, "Top 100, each repo once") }}
+</details>
+<details><summary>Why these numbers aren't a verdict on either ecosystem</summary>
+<ul>
+<li>npm often publishes many small packages from one repo. Monorepos count once per package in the main table, which is why the per-repo version is shown too.</li>
+<li>All <code>@types</code> packages come from one shared repo, so they share its numbers.</li>
+<li>Download counts include CI and mirrors, and the two registries count them differently, so "top 5,000" means slightly different things.</li>
+<li>Commits miss reviews, triage, releases and support in both ecosystems.</li>
+</ul></details>{% endif %}
+<h2>All npm packages</h2>
+<form class="tools" role="search" onsubmit="return false">
+<label>Package name <input id="q" type="search" autocomplete="off" spellcheck="false"></label>
+<label>Show <select id="f">
+<option value="">All packages</option>
+<option value="active">Active</option>
+<option value="slowing">Slowing down</option>
+<option value="quiet">Looks quiet</option>
+<option value="archived">Archived by its owners</option>
+<option value="unknown">Unknown</option>
+<option value="few">Few active contributors</option>
+</select></label>
+<span id="n" class="small muted" role="status"></span>
+</form>
+<div class="scroll"><table id="t">
+<thead><tr><th>Package</th><th class="num">Monthly downloads</th><th class="num hide-sm">Packages that need it</th><th class="num">People making half the commits</th><th>Activity</th></tr></thead>
+<tbody>
+{% for p in pkgs %}<tr data-n="{{ p.name }}" data-s="{{ p.state }}" data-f="{{ 1 if p.few_people else 0 }}"><td><a href="p/{{ p.name }}/">{{ p.name }}</a></td><td class="num">{{ p.downloads|short }}</td><td class="num hide-sm">{{ p.total_dependents|comma }}</td><td class="num">{% if p.bus_factor is none %}Unknown{% elif p.bus_factor == 0 %}None this year{% else %}{{ p.bus_factor }}{% endif %}</td><td class="nowrap"><span class="mark c{{ p.state_class }}"></span>{{ p.state_label }}</td></tr>
+{% endfor %}</tbody></table></div>
+<details><summary>Why you can't sort or combine these filters</summary>
+<p>The same rule as the PyPI list: no sorting by health, and no way to combine "looks quiet" with "few active contributors". The list is ordered by downloads.</p>
+</details>
+<script>
+(function () {
+  var q = document.getElementById("q"), f = document.getElementById("f"), n = document.getElementById("n");
+  var rows = Array.prototype.slice.call(document.querySelectorAll("#t tbody tr"));
+  function go() {
+    var term = q.value.trim().toLowerCase(), want = f.value, shown = 0;
+    rows.forEach(function (r) {
+      var d = r.dataset, ok = d.n.indexOf(term) >= 0 && (!want || (want === "few" ? d.f === "1" : d.s === want));
+      r.hidden = !ok; if (ok) shown++;
+    });
+    n.textContent = shown.toLocaleString("en-US") + " shown";
+  }
+  q.addEventListener("input", go); f.addEventListener("change", go); go();
+})();
+</script>
+{% endblock %}

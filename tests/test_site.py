@@ -312,3 +312,57 @@ def test_survival_result_and_curve_render(tmp_path, passed):
     if passed:
         assert "30%*" in beta and "Nudged" in beta and "1 of 1 packages" in method
     assert "said 30% for 3 months where 45% stayed silent" in method
+
+
+def test_recalibration_attempt_is_reported(tmp_path):
+    write_fixture(tmp_path)
+    (tmp_path / "survival.json").write_text(json.dumps(survival_result(True)))
+    top = {"mean_predicted": 0.42, "observed": 0.45, "n": 10}
+    recal = {
+        "recal_vs_d18": {"gain": 0.0015, "ci": [-0.0002, 0.0032]},
+        "passed": False,
+        "top_tenth": {"730": {"lightgbm": top, "lightgbm_recal": top}},
+    }
+    (tmp_path / "survival_recal.json").write_text(json.dumps(recal))
+    out = tmp_path / "out"
+    site.build(tmp_path, out)
+    method = (out / "method/index.html").read_text()
+    assert "original curve stays" in method and "42% said against 45% observed" in method
+
+
+def test_revival_section_and_quiet_page(tmp_path):
+    write_fixture(tmp_path)
+    table = pd.read_parquet(tmp_path / "site_packages.parquet")
+    table.loc[0, ["state", "state_label", "has_history"]] = ["quiet", "Looks quiet", True]
+    filled = dict.fromkeys(
+        "active_humans regular_humans bus_factor top_share_pct commits_365d handovers_3y "
+        "bot_share_pct".split(),
+        0,
+    )
+    for col, value in {**filled, "commits_prev_365d": 3, "days_since_human": 400}.items():
+        table[col] = table[col].astype(object)
+        table.loc[0, col] = value
+    table["revive_pct"] = [12, None]
+    table["revive_band"] = ["Middle chance", None]
+    table["revive_mark"] = [2, None]
+    table.to_parquet(tmp_path / "site_packages.parquet")
+    m = {"n": 100, "positives": 16, "log_loss": 0.4, "brier": 0.12, "roc_auc": 0.73}
+    result = {
+        "best_baseline": "days_since_human",
+        "published_model": "logistic",
+        "passed": True,
+        "logistic_vs_best_baseline": {"gain": 0.0036, "ci": [0.0011, 0.0062]},
+        "lightgbm_vs_best_baseline": {"gain": -0.005, "ci": [-0.009, -0.001]},
+        "overall": {k: m for k in ("logistic", "lightgbm", "days_since_human", "releases_365d")},
+        "revival_rate_by_year": {"2022-11-09": 0.22, "2023-11-01": 0.16},
+        "n_rows": 100,
+    }
+    (tmp_path / "revival.json").write_text(json.dumps(result))
+    out = tmp_path / "out"
+    site.build(tmp_path, out)
+    method = (out / "method/index.html").read_text()
+    assert "Do quiet projects come back?" in method and "only just" in method
+    alpha = (out / "p/alpha/index.html").read_text()
+    assert "Will it come back?" in alpha and "12%" in alpha
+    beta = (out / "p/beta/index.html").read_text()
+    assert "Will it come back?" not in beta
