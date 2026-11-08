@@ -334,3 +334,73 @@ fold.
   the 6-month point to the 12-month chance for 904 of 2,858 repos. The median nudge was 0.16
   percentage points, and 91 changed the whole percent shown. The rule marks every nudge, so the
   method page reports both counts.
+
+## D21. PRE-REGISTERED recalibrated curve test (2026-11-08, before any result for it)
+**Why.** D20 found the D18 curve runs low, more so at longer horizons. This is written after
+seeing that, and it aims at it. No recalibrated model has been fitted on real data.
+
+**Candidate: recalibrated LightGBM hazard.**
+- The D18 LightGBM hazard, fitted on the person-period rows from every training cutoff except
+  the latest one present for that fold.
+- A Platt step on the latest cutoff's person-period rows: a logistic regression (C=1e6) of the
+  interval label on the logit of the model's hazard.
+- One slope and intercept, applied to every interval's hazard, so S(h) still only falls.
+- This mirrors D13, which fits on all but the latest year and calibrates on the latest.
+
+**Incumbent.** The D18 LightGBM hazard, refitted in the same run.
+
+**Everything else as D18.** Same pinned inputs (D = 2026-11-07, the `survival-*` assets), folds,
+horizons, censoring rule, scored items and pooled log loss. 95% CI from 2,000 bootstrap
+resamples of repos, seed 0.
+
+**Pass rule.** The recalibrated model replaces the D18 curve on the site only if the CI for
+(incumbent minus recalibrated) log loss has a lower bound above zero. Otherwise the D18 curve
+stays, and the method page reports the attempt.
+
+**Also reported, not deciding.** Log loss at each horizon. Top-tenth calibration at each horizon.
+Log loss at 365 days against the D13 refit.
+
+**Unchanged.** The display rules from D18. The frozen record. `models.json`. The test writes only
+`survival_recal.json`, plus `survival_model.json` if it passes.
+
+## D22. PRE-REGISTERED revival test (2026-11-08, before any result for it)
+**Question.** Among projects that look quiet, which will have a human commit again within 12
+months? About 4 in 10 quiet projects later return (docs/data_audit.md). No revival model has
+been fitted, and no revival rate has been computed from the panel.
+
+**Unit and sample.**
+- One row per repo per cutoff, from the D12 cohort.
+- Eligible if the repo had a human commit at some point before the cutoff, and none in the 365
+  days before it (`commits_365d == 0`).
+- Same pinned inputs as D18. PyPI release days are pinned too, on the first run.
+
+**Outcome (`revived`).** At least one human commit in the 365 days after the cutoff, bots
+excluded.
+
+**Features.** The 16 `health.FEATURES` at the cutoff, plus two more, both from data dated on or
+before the cutoff:
+- `releases_365d`: days with a PyPI release from the repo's cohort packages in the past 365 days.
+- `bot_commits_365d`: bot commits in the past 365 days.
+
+**Candidates.** As D13, with the same settings and a Platt step on the latest training cutoff.
+1. Logistic, the primary.
+2. LightGBM, the challenger.
+3. One-feature logistic baselines: (a) `days_since_human`, (b) `releases_365d`.
+
+**Walk-forward, metric, comparison and pass rule.** Exactly as D13: same test and training
+cutoffs, the training-outcome rule, pooled log loss, best baseline chosen after the fact, paired
+repo bootstrap (2,000 resamples, seed 0). The logistic model passes if its CI against the best
+baseline has a lower bound above zero. LightGBM is adopted only if it beats both, each with a
+CI lower bound above zero.
+
+**Also reported, not deciding.** ROC-AUC, Brier, calibration by tenths, per-year results, and the
+revival rate by test year.
+
+**What the site shows.**
+- **On a pass:** the page of a package that looks quiet (not archived, not unknown) shows
+  "chance of a human commit again within 12 months", as a whole percent with D14 band words.
+  It's marked as not part of the frozen record.
+- **On a fail:** nothing new on package pages, and the method page reports the result.
+- **Safety:** this adds one number to pages that already show "looks quiet". It adds no sort or
+  filter, and the packages page stays as D10 describes.
+- **Either way:** the test writes only `revival.json`, plus `revival_model.json` if it passes.
