@@ -404,3 +404,40 @@ revival rate by test year.
 - **Safety:** this adds one number to pages that already show "looks quiet". It adds no sort or
   filter, and the packages page stays as D10 describes.
 - **Either way:** the test writes only `revival.json`, plus `revival_model.json` if it passes.
+
+## D23. npm: scope and a comparison fixed in advance (2026-11-08, before any npm health number)
+**Scope.**
+- The top 5,000 npm packages by last-month downloads from ecosyste.ms, the same rule as D2.
+- Required dependencies are the `dependencies` of each package's latest version on the npm
+  registry. Dev, peer, optional and bundled dependencies are left out, as D9 leaves out extras.
+  Edges stay inside the top 5,000.
+- Same repo unit (D1), same git reading, bot filter, health definitions and labels as PyPI.
+
+**No npm forecast.** The 12-month forecast, the curve and the revival chance were trained and
+tested on PyPI only. npm pages say "no forecast" instead of borrowing a number. A transfer test
+would need its own pre-registration first.
+
+**Privacy and safety, unchanged.**
+- Maintainer and author fields from ecosyste.ms and from npm manifests are dropped on arrival.
+  Only the dependency names are kept.
+- No names, usernames or repo links are shown.
+- D10's sort and filter rules apply to the npm list as well.
+
+**Comparison, fixed before seeing any npm health data.**
+- **Measures**, for each ecosystem:
+  1. Share of packages with readable history where one person made half of the past-year human
+     commits (bus factor 1).
+  2. Share that look quiet.
+  3. Share with few active contributors (`build.is_few`).
+  4. Median active people among active and slowing projects.
+  5. Share unknown, out of all tracked packages.
+- **Scope of each measure:** the top 5,000 and the top 100. Computed at package level, and again
+  at repo level with each repo counted once.
+- **Uncertainty:** 95% intervals from 2,000 bootstrap resamples of repos, seed 0.
+- **Wording:**
+  - A difference is called a difference only if the interval of the difference excludes zero.
+  - Results are described as "among the most downloaded packages", never as one ecosystem being
+    "more fragile" or "safer".
+  - Known confounders are listed next to the numbers: npm's many small packages per repo,
+    monorepos (for example one repo behind all `@types` packages), downloads that count CI
+    differently, and different release habits.
