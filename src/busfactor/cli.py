@@ -214,7 +214,20 @@ def cmd_weekly(args) -> None:
     status = build.load_status(DATA_DIR)
     track = live.grade(live.read_frozen(folder), rows, today, status)
 
-    forecast_cols = eligible[["repo_key", "prob", "reasons"]]
+    extra = []
+    surv_path = DATA_DIR / "survival_model.json"
+    if surv_path.exists():  # written only if the D18 test passed
+        curves = survival.curve_from_json(json.loads(surv_path.read_text()), eligible)
+        shown = [
+            survival.displayed(a, b, d, y)
+            for a, b, d, y in zip(
+                curves[:, 0], curves[:, 1], curves[:, 3], eligible["prob"], strict=True
+            )
+        ]
+        extra = list(shown[0]) if shown else []
+        for key in extra:
+            eligible[key] = [row[key] for row in shown]
+    forecast_cols = eligible[["repo_key", "prob", "reasons", *extra]]
     table, sim = build.assemble(universe_df, requires, rows, today, forecast_cols)
     table.to_parquet(DATA_DIR / "site_packages.parquet", index=False)
     sim.to_parquet(DATA_DIR / "simulator.parquet", index=False)

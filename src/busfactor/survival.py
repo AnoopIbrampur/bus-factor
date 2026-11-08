@@ -28,6 +28,7 @@ import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
+from .build import band
 from .config import TEST_CUTOFFS, TRAIN_CUTOFFS
 from .forecast import (
     BASELINES,
@@ -300,9 +301,19 @@ def curve_from_json(spec: dict, frame: pd.DataFrame) -> np.ndarray:
 
 
 def displayed(s90: float, s180: float, s730: float, year: float) -> dict:
-    """D18 display rule: keep the shown points in order around the frozen 12-month chance."""
+    """D18 display rule: keep the shown points in order around the frozen 12-month chance.
+
+    Percentages are whole numbers, and each point gets its D14 band words, taken from the
+    unrounded value so a band never depends on rounding.
+    """
     shown = {"s90": max(s90, year), "s180": max(s180, year), "s730": min(s730, year)}
-    return {
-        **{k: round(100 * v) for k, v in shown.items()},
-        "adjusted": [k for k, raw in zip(shown, (s90, s180, s730), strict=True) if shown[k] != raw],
+    raws = dict(zip(shown, (s90, s180, s730), strict=True))
+    out = {
+        "s_adjusted": [k for k in shown if shown[k] != raws[k]],
+        # Nudges big enough to change the whole percent shown, reported on the method page.
+        "s_visible": [k for k in shown if round(100 * shown[k]) != round(100 * raws[k])],
     }
+    for k, v in shown.items():
+        out[k] = round(100 * float(v))
+        out[f"{k}_band"], out[f"{k}_mark"] = band(v)
+    return out

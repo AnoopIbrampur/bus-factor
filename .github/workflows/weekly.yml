@@ -42,6 +42,8 @@ jobs:
           for A in universe requires; do scripts/state.sh pull "$A.parquet" "data/$A.parquet"; done
           scripts/state.sh pull models.json data/models.json
           scripts/state.sh pull backtest.json data/backtest.json
+          scripts/state.sh pull survival_model.json data/survival_model.json
+          scripts/state.sh pull survival.json data/survival.json
           for S in 0 1 2 3 4 5; do
             scripts/state.sh pull "rows-$S.parquet.enc" "data/rows-$S.parquet"
             scripts/state.sh pull "status-$S.parquet" "data/status-$S.parquet"

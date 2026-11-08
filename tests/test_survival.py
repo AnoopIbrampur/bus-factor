@@ -121,6 +121,11 @@ def test_kaplan_meier_is_the_plain_share():
 def test_display_keeps_points_in_order_around_the_frozen_year():
     out = survival.displayed(0.30, 0.25, 0.20, year=0.28)
     assert (out["s90"], out["s180"], out["s730"]) == (30, 28, 20)
-    assert out["adjusted"] == ["s180"]
+    assert out["s_adjusted"] == ["s180"] and out["s_visible"] == ["s180"]
+    tiny = survival.displayed(0.30, 0.2799, 0.20, year=0.28)
+    assert tiny["s_adjusted"] == ["s180"] and tiny["s_visible"] == []
+    assert out["s730_band"] == "Middle chance" and out["s90_band"] == "Higher chance"
     clean = survival.displayed(0.6, 0.5, 0.2, year=0.4)
-    assert clean["adjusted"] == []
+    assert clean["s_adjusted"] == []
+    edge = survival.displayed(0.0996, 0.0996, 0.01, year=0.05)
+    assert edge["s90"] == 10 and edge["s90_band"] == "Lower chance"  # band uses the raw value

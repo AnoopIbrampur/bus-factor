@@ -254,3 +254,61 @@ def test_checker_files_hold_page_facts_only(tmp_path):
         "requires",
     }
     assert beta["few"] is True and beta["chance"] == 20
+
+
+def survival_result(passed: bool) -> dict:
+    m = {"n": 50, "positives": 20, "log_loss": 0.4, "brier": 0.1, "roc_auc": 0.8}
+    by = {k: m for k in ("logistic", "lightgbm", "km", "last_commit", "commits_past_year")}
+    gain = {"gain": 0.01, "ci": [0.005, 0.02] if passed else [-0.01, 0.02]}
+    return {
+        "overall": by,
+        "by_horizon": {"90": by, "730": by},
+        "best_baseline": "km",
+        "logistic_vs_best_baseline": gain,
+        "lightgbm_vs_logistic": {"gain": -0.01, "ci": [-0.02, -0.001]},
+        "lightgbm_vs_best_baseline": gain,
+        "passed": passed,
+        "published_model": "logistic" if passed else None,
+        "n_items": 100,
+        "n_repos": 40,
+        "at_365_vs_d13_refit": {**{k: 0.3 for k in by}, "d13_lightgbm": 0.31},
+        "calibration": {
+            h: {k: [{"n": 5, "mean_predicted": 0.3, "observed": 0.45}] for k in by}
+            for h in ("90", "730")
+        },
+    }
+
+
+@pytest.mark.parametrize("passed", [True, False])
+def test_survival_result_and_curve_render(tmp_path, passed):
+    write_fixture(tmp_path)
+    table = pd.read_parquet(tmp_path / "site_packages.parquet")
+    if passed:
+        curve = {
+            "s90": [None, 40],
+            "s180": [None, 30],
+            "s730": [None, 10],
+            "s90_band": [None, "Higher chance"],
+            "s180_band": [None, "Higher chance"],
+            "s730_band": [None, "Middle chance"],
+            "s90_mark": [None, 3],
+            "s180_mark": [None, 3],
+            "s730_mark": [None, 2],
+            "s_adjusted": [None, ["s180"]],
+            "s_visible": [None, []],
+        }
+        table = table.assign(**curve)
+        table.to_parquet(tmp_path / "site_packages.parquet")
+    (tmp_path / "survival.json").write_text(json.dumps(survival_result(passed)))
+    out = tmp_path / "out"
+    site.build(tmp_path, out)
+    method = (out / "method/index.html").read_text()
+    assert "How long a project may stay silent" in method
+    assert ("Yes." in method) == passed and ("show a curve" in method) != passed
+    beta = (out / "p/beta/index.html").read_text()
+    alpha = (out / "p/alpha/index.html").read_text()
+    assert ("How long it may stay silent" in beta) == passed
+    assert "How long it may stay silent" not in alpha  # unknown never gets a curve
+    if passed:
+        assert "30%*" in beta and "Nudged" in beta and "1 of 1 packages" in method
+    assert "said 30% for 3 months where 45% stayed silent" in method

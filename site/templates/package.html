@@ -12,6 +12,15 @@
 <div><dt>Packages that need it</dt><dd>{{ p.total_dependents|comma }}</dd><div class="note">Within the top {{ n_packages|comma }}. <a href="../../simulator/{{ p.name }}/">See them</a></div></div>
 {% if p.prob is not none %}<div><dt>Chance of no human commit in 12 months</dt><dd>{{ p.prob_pct }}%</dd><div class="note"><span class="mark c{{ p.band_class }}"></span>{{ p.band_label }}</div></div>{% endif %}
 </dl>
+{% if p.s730 is defined and p.s730 is not none %}<h2>How long it may stay silent</h2>
+<p>Chance of no human commit for:</p>
+<dl class="facts">
+{% for key, label in [('s90', '3 months'), ('s180', '6 months')] %}<div><dt>{{ label }}</dt><dd>{{ p[key] }}%{% if key in p.s_adjusted %}*{% endif %}</dd><div class="note"><span class="mark c{{ p[key ~ '_mark'] }}"></span>{{ p[key ~ '_band'] }}</div></div>
+{% endfor %}<div><dt>12 months</dt><dd>{{ p.prob_pct }}%</dd><div class="note"><span class="mark c{{ p.band_class }}"></span>{{ p.band_label }}, the frozen forecast</div></div>
+<div><dt>2 years</dt><dd>{{ p.s730 }}%{% if 's730' in p.s_adjusted %}*{% endif %}</dd><div class="note"><span class="mark c{{ p.s730_mark }}"></span>{{ p.s730_band }}</div></div>
+</dl>
+<p class="small muted">From a second model tested on past years, described on the <a href="../../method/">method page</a>. It isn't part of the frozen weekly record.{% if p.s_adjusted %} * Nudged to stay in order with the 12-month forecast, which comes from a different model.{% endif %}</p>
+{% endif %}
 {% if p.reasons %}<h2>Why the forecast says this</h2>
 <ul>{% for r in p.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
 <p class="small muted">These are statistical associations across many projects. They are not causes, and they say nothing about the people involved.</p>{% endif %}

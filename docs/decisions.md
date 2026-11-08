@@ -293,3 +293,44 @@ D17 keep off the site.
   `[tool.poetry.dependencies]` only.
 - **Dependencies come from each package's latest release (D9).** Required only, extras not
   followed, markers ignored.
+
+## D20. Result of the D18 test (2026-11-08)
+Run 42505301254 on the pinned 2026-11-07 inputs. 36,176 scored predictions from 2,982 repos.
+
+**Pooled log loss.**
+
+| Method | Log loss |
+|---|---|
+| LightGBM hazard | 0.348 |
+| Logistic hazard | 0.355 |
+| Commits in past year (best baseline) | 0.399 |
+| Last commit date | 0.410 |
+| Kaplan–Meier, no features | 0.510 |
+
+**Gains, with 95% CIs.**
+- Logistic over the best baseline: 0.044, CI 0.038 to 0.050.
+- LightGBM over logistic: 0.007, CI 0.004 to 0.009.
+- LightGBM over the best baseline: 0.051, CI 0.045 to 0.057.
+
+**Under D18, the LightGBM hazard passes and is adopted.** It wins at every horizon and in every
+fold.
+
+**Observations, none of which change the rule:**
+- **The 12-month counts match the D13 test exactly** (9,568 rows, 1,485 quiet). That's a check
+  that both tests read the same outcomes.
+- **At 12 months, the hazard model is slightly worse than the D13 model** refitted in the same run
+  (0.3025 against 0.2987). D13 has a Platt step and the hazard model has none. The frozen weekly
+  forecast stays the D13 model, as D18 says.
+- **The curve runs low, more so at longer horizons.** In the top tenth, the model said 78% and 82%
+  stayed silent at 3 months. At 2 years it said 33% and 47% stayed silent. A likely cause: quiet
+  became more common over time (8% of eligible repos at the 2017 cutoff, 16% from 2023), and the
+  2-year interval learns only from older cutoffs. The method page says the 2-year numbers are
+  likely on the low side. Fixing this would need a new pre-registered model, not a change to this
+  one.
+- **The live model is fitted on every cutoff**, with outcomes seen up to D. D18 didn't spell this
+  out. It follows what the D13 live fit does, and the weekly job only applies the model, never
+  refits it.
+- **Display nudges, first look (local dry run on 2026-11-08 data).** The D18 order rule raised
+  the 6-month point to the 12-month chance for 904 of 2,858 repos. The median nudge was 0.16
+  percentage points, and 91 changed the whole percent shown. The rule marks every nudge, so the
+  method page reports both counts.

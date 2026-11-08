@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
+from . import narrative
 from .deps import canon
 
 TEMPLATES = Path("site/templates")
@@ -157,7 +158,22 @@ def build(data_dir: Path, out: Path) -> None:
         examples=examples,
     )
     page("track.html", "track-record/index.html", "../", "Track record", "track", ctx=context)
-    page("method.html", "method/index.html", "../", "Method and limits", "method", ctx=context)
+    surv = None
+    if (data_dir / "survival.json").exists():
+        n_curves = sum(1 for p in pkgs if p.get("s730") is not None)
+        n_adjusted = sum(1 for p in pkgs if p.get("s730") is not None and p.get("s_adjusted"))
+        n_visible = sum(1 for p in pkgs if p.get("s730") is not None and p.get("s_visible"))
+        result = json.loads((data_dir / "survival.json").read_text())
+        surv = narrative.survival_context(result, n_curves, n_adjusted, n_visible)
+    page(
+        "method.html",
+        "method/index.html",
+        "../",
+        "Method and limits",
+        "method",
+        ctx=context,
+        surv=surv,
+    )
     page("checker.html", "check/index.html", "../", "Check your dependencies", "checker")
     # The checker's name list: names only, alphabetical, nothing about health (D19).
     write(out, "check/names.json", json.dumps(sorted(p["name"] for p in pkgs)))

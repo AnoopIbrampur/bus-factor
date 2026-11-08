@@ -92,3 +92,84 @@ def context(
         "audit_line": audit_line,
         "calibration_svg": calibration_svg(backtest["calibration"][published]),
     }
+
+
+SURVIVAL_LABELS = {
+    "logistic": "Logistic curve model",
+    "lightgbm": "LightGBM curve model",
+    "km": "Same curve for every project",
+    "last_commit": "Last commit date",
+    "commits_past_year": "Commits in past year",
+}
+HORIZON_LABELS = {"90": "3 months", "180": "6 months", "365": "12 months", "730": "2 years"}
+
+
+def survival_context(
+    result: dict, n_curves: int = 0, n_adjusted: int = 0, n_visible: int = 0
+) -> dict:
+    """Sentences and table rows for the D18 test, built from its result file alone."""
+    best = result["best_baseline"]
+    pub = result["published_model"]
+    shown = pub or "logistic"
+    gain = result[
+        "lightgbm_vs_best_baseline" if shown == "lightgbm" else "logistic_vs_best_baseline"
+    ]
+    model_ll = result["overall"][shown]["log_loss"]
+    base_ll = result["overall"][best]["log_loss"]
+    if result["passed"]:
+        summary = (
+            f"Yes. Scored at 3 months, 6 months, 12 months and 2 years, the "
+            f"{SURVIVAL_LABELS[pub].lower()} beat the best simple method "
+            f"({SURVIVAL_LABELS[best].lower()}): log loss {model_ll:.3f} against {base_ll:.3f}. "
+            f"The rule for passing was published before the test ran."
+        )
+    else:
+        summary = (
+            f"No. The curve model didn't clearly beat the best simple method "
+            f"({SURVIVAL_LABELS[best].lower()}): log loss {model_ll:.3f} against {base_ll:.3f}. "
+            f"So package pages don't show a curve. The rule for passing was published before "
+            f"the test ran."
+        )
+    rows = []
+    for h, by in sorted(result["by_horizon"].items(), key=lambda kv: int(kv[0])):
+        rows.append(
+            {
+                "label": HORIZON_LABELS[h],
+                "n": by[shown]["n"],
+                "silent": by[shown]["positives"],
+                "model": by[shown]["log_loss"],
+                "base": by[best]["log_loss"],
+                "model_auc": by[shown]["roc_auc"],
+            }
+        )
+    return {
+        "summary": summary,
+        "passed": result["passed"],
+        "shown": shown,
+        "shown_label": SURVIVAL_LABELS[shown],
+        "best": best,
+        "best_label": SURVIVAL_LABELS[best],
+        "gain": gain,
+        "model_ll": model_ll,
+        "base_ll": base_ll,
+        "overall": [
+            {"label": SURVIVAL_LABELS[k], **v}
+            for k, v in result["overall"].items()
+            if k in SURVIVAL_LABELS
+        ],
+        "rows": rows,
+        "n_items": result["n_items"],
+        "n_repos": result["n_repos"],
+        "at_year": result.get("at_365_vs_d13_refit"),
+        "n_curves": n_curves,
+        "n_adjusted": n_adjusted,
+        "n_visible": n_visible,
+        "top_tenth": [
+            {
+                "label": HORIZON_LABELS[h],
+                "said": result["calibration"][h][shown][-1]["mean_predicted"],
+                "saw": result["calibration"][h][shown][-1]["observed"],
+            }
+            for h in sorted(result.get("calibration", {}), key=int)
+        ],
+    }

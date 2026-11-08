@@ -29,6 +29,26 @@
 <p>Only one dated score list can still be downloaded, from July 2025, so this covers the last test year only: {{ b.criticality.n|comma }} projects. ROC-AUC was {{ '%.3f'|format(b.criticality.logistic_auc) }} for the logistic model and {{ '%.3f'|format(b.criticality.criticality_auc) }} for the score. The difference has a 95% interval of {{ '%.3f'|format(b.criticality.diff_ci[0]) }} to {{ '%.3f'|format(b.criticality.diff_ci[1]) }}. Criticality Score was built to measure importance rather than to forecast quiet, so this is a fair check and no verdict on that project.</p>
 </details>{% endif %}
 
+{% if surv %}<h2>How long a project may stay silent</h2>
+<p>A second test, also written down before it ran, asked for a whole curve instead of one 12-month yes or no: the chance of no human commit for 3 months, 6 months, 12 months and 2 years. {{ surv.summary }}</p>
+<dl class="facts">
+<div><dt>{{ surv.shown_label }}, log loss</dt><dd>{{ '%.3f'|format(surv.model_ll) }}</dd><div class="note">All horizons pooled, lower is better</div></div>
+<div><dt>Best simple method, log loss</dt><dd>{{ '%.3f'|format(surv.base_ll) }}</dd><div class="note">{{ surv.best_label }}</div></div>
+<div><dt>Improvement, 95% interval</dt><dd class="text">{{ '%.3f'|format(surv.gain.ci[0]) }} to {{ '%.3f'|format(surv.gain.ci[1]) }}</dd><div class="note">Passing needed this to stay above zero</div></div>
+</dl>
+<div class="scroll"><table><caption>{{ surv.n_items|comma }} scored predictions from {{ surv.n_repos|comma }} projects. A horizon is scored only in years whose outcome is fully known.</caption>
+<thead><tr><th>No human commit for</th><th class="num">Scored</th><th class="num">Stayed silent</th><th class="num">{{ surv.shown_label }}</th><th class="num">Best simple method</th></tr></thead>
+<tbody>{% for r in surv.rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.n|comma }}</td><td class="num">{{ r.silent|comma }}</td><td class="num">{{ '%.3f'|format(r.model) }}</td><td class="num">{{ '%.3f'|format(r.base) }}</td></tr>
+{% endfor %}</tbody></table></div>
+<details><summary>Every method, all horizons pooled</summary>
+<div class="scroll"><table><thead><tr><th>Method</th><th class="num">Log loss</th><th class="num">Brier</th><th class="num">ROC-AUC</th></tr></thead>
+<tbody>{% for m in surv.overall %}<tr><td>{{ m.label }}</td><td class="num">{{ '%.3f'|format(m.log_loss) }}</td><td class="num">{{ '%.3f'|format(m.brier) }}</td><td class="num">{{ '%.3f'|format(m.roc_auc) }}</td></tr>
+{% endfor %}</tbody></table></div>
+{% if surv.at_year %}<p>At 12 months alone, the {{ surv.shown_label|lower }} scored {{ '%.3f'|format(surv.at_year[surv.shown]) }} against {{ '%.3f'|format(surv.at_year.d13_lightgbm) }} for the 12-month model behind the weekly forecast, refitted in the same run. The weekly forecast keeps using its own frozen model either way.</p>{% endif %}
+</details>
+{% if surv.top_tenth %}<p>The curve runs low, more so at longer horizons. Among the tenth of projects it gave the highest chance, it said {% for t in surv.top_tenth %}{{ '%.0f'|format(100 * t.said) }}% for {{ t.label }} where {{ '%.0f'|format(100 * t.saw) }}% stayed silent{{ ', ' if not loop.last else '' }}{% endfor %}. Projects have gone quiet more often in recent years than in the older years the long horizons learn from, and unlike the 12-month forecast this model has no recalibration step. Read the 2-year numbers as likely on the low side.</p>{% endif %}
+{% if surv.passed and surv.n_curves %}<p class="small muted">Package pages show this curve at 3 months, 6 months and 2 years, next to the frozen 12-month forecast. Because the two come from different models, a point is nudged when needed so the chances stay in order: {{ surv.n_adjusted|comma }} of {{ surv.n_curves|comma }} packages had at least one point nudged, and for {{ surv.n_visible|comma }} the nudge changed the whole percent shown. Most nudges are a fraction of a point. The curve isn't part of the frozen weekly record.</p>{% endif %}
+{% endif %}
 <h2>How people are counted</h2>
 <p>Git histories are read on GitHub's servers. Author emails and names are hashed in memory with a throwaway salt, merged when they obviously belong to one person, and replaced by a number that only means something inside one repo. Nothing identifying is stored or published.</p>
 <details><summary>Definitions</summary>
