@@ -78,6 +78,7 @@ footer.site p { margin: var(--s-2) 0; }
 .facts dt { font-size: var(--t-sm); color: var(--muted); }
 .facts dd { margin: 0; font: 500 var(--t-2xl)/1.2 "Spectral", Georgia, serif; }
 .facts dd.text { font-size: var(--t-lg); }
+.facts.compact { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--s-4) var(--s-6); margin: var(--s-6) 0; }
 .facts .note { font: 400 var(--t-sm)/1.4 "Atkinson", system-ui, sans-serif; color: var(--muted); }
 
 .scroll { overflow-x: auto; }

@@ -185,7 +185,7 @@ rich[jupyter]==13.7.1"></textarea>
     });
     out.appendChild(el("h2", null, "What your project relies on"));
     out.appendChild(el("p", "lede", "You named " + plural(named, "package", "packages") + ". With everything they need in turn, that's " + plural(nodes.length, "package", "packages") + " in all."));
-    var dl = el("dl", "facts");
+    var dl = el("dl", "facts compact");
     [["Active", count.active], ["Slowing down", count.slowing], ["Looks quiet", count.quiet], ["Archived by its owners", count.archived], ["Few active contributors", few], ["Unknown or not covered", count.unknown + count.outside]].forEach(function (f) {
       var d = el("div"); d.appendChild(el("dt", null, f[0])); d.appendChild(el("dd", null, f[1].toLocaleString("en-US"))); dl.appendChild(d);
     });
