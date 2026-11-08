@@ -184,3 +184,88 @@ decision held. Both runs are in docs/model_card.md.
 3. **Grading as published.** `grade()` now grades only repos read successfully on or after the
    due date, as D15 says. Before this fix, a deleted repo would have kept its old rows and been
    graded as quiet. No week was graded before the fix.
+
+## D18. PRE-REGISTERED "how long" test (2026-11-08, committed before any survival result)
+Written before any survival code ran on real data. Nobody has looked at survival curves,
+Kaplan–Meier tables, or hazards from the real harvest. Synthetic-data unit tests are the only runs.
+
+**Question.** How long will a project go without a human commit? D13 answers this only for
+12 months, as yes or no. This test asks for a whole curve.
+
+**Event.** The next human commit on the default branch after the cutoff, with bots excluded as in
+D4. S(h) = chance of no human commit in (t, t+h]. S(365) is exactly D13's `quiet`.
+- Why this definition and not "time until a year-long silence starts": that event can only be seen
+  up to D − 365, so it would lose most test folds. It also has no clean link to D13.
+- Worked example. Cutoff 2023-11-01, next human commit 2024-02-10 (101 days later). The project is
+  silent through h = 90 and not through 180, 365 or 730.
+
+**Data, pinned.** As-of date D = 2026-11-07 (the harvest D13 used).
+- Rows are filtered to `day <= D`.
+- Only repos whose latest read succeeded on or after D are used.
+- The first run copies its inputs to dated release assets (`survival-*`), and every later run reads
+  those copies. The weekly harvest therefore can't change the answer.
+- Same D12 cohort and D13 eligibility: at least one human commit in the 365 days before the cutoff.
+  Features: the 16 `health.FEATURES`, from `measures_at`.
+
+**Model form.** A discrete-time hazard over four intervals: (0,90], (90,180], (180,365], (365,730]
+days.
+- A repo-cutoff contributes one row per interval it enters while still silent.
+- Each row's label is whether the first human commit falls inside that interval.
+- S(h) is the product of (1 − hazard) over the intervals up to h.
+
+**Censoring, and the leakage rule.**
+- For test cutoff T, a training row from cutoff c uses only commits on or before T.
+- Its interval k is used only if c + end_k ≤ T. Later intervals are dropped.
+- A test enforces this: adding a commit after T to a training repo must leave the predictions for
+  that test cutoff unchanged.
+- Test labels use commits up to D. Each (fold, horizon) is scored only if T + h ≤ D, so no
+  censoring weights are needed.
+
+**Folds and horizons.**
+- Test cutoffs as in D13: 2022-11-09, 2023-11-01, 2024-11-01, 2025-11-01.
+- Horizons 90, 180 and 365: all four folds. Horizon 730: the first three folds.
+- Training cutoffs as in D13 (Nov 1 of 2017–2024), each with the interval rule above.
+
+**Candidates.** Same pipeline, no tuning, no Platt step. A hazard model has no clean calibration
+year, so none of the candidates get one.
+1. Logistic hazard: L2, C=1, standardised, D13 log-scale features, plus interval dummies. The
+   primary candidate.
+2. LightGBM hazard: D13 hyperparameters, with the interval index as an extra feature. The
+   challenger.
+3. Baselines:
+   - (a) Kaplan–Meier style: each interval's hazard taken from training rows, with no features.
+   - (b) and (c) one-feature logistic hazards on `days_since_human` and on `commits_365d`, each
+     with interval dummies.
+
+**Metric and comparison.**
+- Each test (repo, cutoff, horizon) is one scored item: y = 1 if silent through h, p = S(h).
+- Primary metric: mean log loss over all items pooled.
+- Best baseline: the baseline with the lowest pooled log loss, chosen after the fact on purpose.
+- 95% CI on the difference from 2,000 bootstrap resamples of repos, seed 0, pairing all of a repo's
+  items.
+
+**Pass rule.**
+- The logistic hazard passes if the CI's lower bound is above zero against the best baseline.
+- LightGBM is adopted instead only if it beats both the logistic hazard and the best baseline, each
+  with a CI lower bound above zero.
+
+**Also reported, not deciding.**
+- Log loss, Brier and ROC-AUC at each horizon and fold.
+- Calibration by tenths at each horizon.
+- At 365 days, the D13 LightGBM refitted in the same job on the same rows, for comparison.
+  LightGBM isn't bit-for-bit reproducible, so this refit is not the live model.
+
+**What the site shows.**
+- **On a pass:** each package page gets a "how long it may stay silent" line with the adopted
+  model's S at 3 months, 6 months and 2 years.
+  - The 12-month point is left out. The only 12-month chance on the site stays the frozen D13/D15
+    forecast, so there are never two 12-month numbers.
+  - Displayed points are kept in order around that number: 3 and 6 months are shown as at least the
+    12-month chance, and 2 years as at most it. The page marks any point that was adjusted, and the
+    method page reports how often this happened.
+  - Words follow D14 bands. "Unknown" stays unknown.
+- **On a fail:** package pages show nothing new, and the method page says the curve didn't beat the
+  baseline.
+- **Either way:** survival numbers are not added to the frozen weekly files, and the D13 model and
+  `models.json` are not touched. The survival job writes only its own files (`survival.json`,
+  `survival_model.json`).
