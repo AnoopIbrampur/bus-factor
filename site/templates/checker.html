@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block body %}
 <h1>Check your dependencies</h1>
-<p class="lede">Paste a <code>requirements.txt</code> or <code>pyproject.toml</code> to see how the packages your project needs are kept going, including the packages they need in turn.</p>
+<p class="lede">Paste a <code>requirements.txt</code>, <code>pyproject.toml</code> or npm <code>package.json</code> to see how the packages your project needs are kept going, including the packages they need in turn.</p>
 <p class="small muted">Your file stays in your browser and is never uploaded. The page downloads the public data file for each package it finds, the same as opening that package's page.</p>
 <form id="chk" class="checker" onsubmit="return false">
 <label for="src">Your requirements</label>
@@ -10,14 +10,14 @@ pandas
 rich[jupyter]==13.7.1"></textarea>
 <div class="row">
 <button id="go" type="submit">Check</button>
-<label class="file">Or open a file <input id="file" type="file" accept=".txt,.toml,.in,.cfg,text/plain"></label>
+<label class="file">Or open a file <input id="file" type="file" accept=".txt,.toml,.in,.cfg,.json,text/plain,application/json"></label>
 </div>
 </form>
 <div id="status" class="small" role="status" aria-live="polite"></div>
 <div id="out"></div>
 <details><summary>What this check can't show</summary>
 <ul>
-<li>It maps the top {{ n_packages|comma }} PyPI packages only. Anything else shows as not covered, and we don't follow what it needs. Not covered doesn't mean healthy.</li>
+<li>It maps the most downloaded PyPI and npm packages only (about 5,000 each). Anything else shows as not covered, and we don't follow what it needs. Not covered doesn't mean healthy.</li>
 <li>Dependencies come from each package's latest release, not the version you pinned. Optional extras aren't followed, and environment markers are ignored, so a package needed only on Windows still counts.</li>
 <li>Activity describes commits on the default branch. Quiet can mean finished. Few active contributors is no criticism of anyone.</li>
 <li>Lines it can't read, like <code>-r other.txt</code>, <code>-e</code> or a bare URL, are listed so you can check them yourself.</li>
@@ -31,7 +31,7 @@ rich[jupyter]==13.7.1"></textarea>
   var form = document.getElementById("chk"), src = document.getElementById("src");
   var file = document.getElementById("file"), statusEl = document.getElementById("status");
   var out = document.getElementById("out"), go = document.getElementById("go");
-  var namesPromise = null, cache = {};
+  var namesPromise = {}, cache = {}, ECO = "pypi";
 
   function canon(n) { return n.replace(/[-_.]+/g, "-").toLowerCase(); }
 
@@ -90,27 +90,43 @@ rich[jupyter]==13.7.1"></textarea>
     });
   }
 
+  // A package.json: only "dependencies" count, as on the npm pages (D23).
+  function fromPackageJson(text, found, skipped) {
+    var obj;
+    try { obj = JSON.parse(text); } catch (e) { return false; }
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return false;
+    Object.keys(obj.dependencies || {}).forEach(function (n) { found.push(n.trim().toLowerCase()); });
+    var dev = Object.keys(obj.devDependencies || {}).length;
+    if (dev) skipped.push(dev + " devDependencies, which aren't followed");
+    return true;
+  }
+
   function parse(text) {
-    var found = [], skipped = [];
-    if (/^\s*\[(project|tool\.poetry\.dependencies)\]\s*$/m.test(text)) fromPyproject(text, found, skipped);
+    var found = [], skipped = [], eco = "pypi";
+    if (/^\s*\{/.test(text) && fromPackageJson(text, found, skipped)) eco = "npm";
+    else if (/^\s*\[(project|tool\.poetry\.dependencies)\]\s*$/m.test(text)) fromPyproject(text, found, skipped);
     else fromRequirements(text, found, skipped);
     var seen = {}, names = [];
     found.forEach(function (n) { if (!seen[n]) { seen[n] = 1; names.push(n); } });
-    return { names: names, skipped: skipped };
+    return { names: names, skipped: skipped, eco: eco };
   }
 
   function getJSON(url) {
     return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
   }
+  // Scoped npm names keep their slash as a folder: @scope/name lives at p/@scope/name/.
+  function path(name) { return name.split("/").map(encodeURIComponent).join("/"); }
+  function base() { return ROOT + (ECO === "npm" ? "npm/" : ""); }
   function known() {
-    if (!namesPromise) namesPromise = getJSON("names.json").then(function (list) {
+    if (!namesPromise[ECO]) namesPromise[ECO] = getJSON(ECO === "npm" ? ROOT + "npm/names.json" : "names.json").then(function (list) {
       var set = {}; (list || []).forEach(function (n) { set[n] = 1; }); return set;
     });
-    return namesPromise;
+    return namesPromise[ECO];
   }
   function record(name) {
-    if (!cache[name]) cache[name] = getJSON(ROOT + "p/" + encodeURIComponent(name) + "/data.json");
-    return cache[name];
+    var key = ECO + ":" + name;
+    if (!cache[key]) cache[key] = getJSON(base() + "p/" + path(name) + "/data.json");
+    return cache[key];
   }
 
   // Walk the tree one level at a time: what you named, then what those need, and so on.
@@ -154,7 +170,7 @@ rich[jupyter]==13.7.1"></textarea>
   function item(node, covered) {
     var li = el("li"), rec = node.rec, line = el("span", "what");
     if (rec) {
-      var a = el("a", null, node.name); a.href = ROOT + "p/" + encodeURIComponent(node.name) + "/"; li.appendChild(a);
+      var a = el("a", null, node.name); a.href = base() + "p/" + path(node.name) + "/"; li.appendChild(a);
       line.appendChild(mark(rec.mark)); line.appendChild(document.createTextNode(rec.label));
       if (rec.few) line.appendChild(document.createTextNode(" · Few active contributors"));
       if (rec.chance !== null && rec.chance !== undefined) {
@@ -165,7 +181,7 @@ rich[jupyter]==13.7.1"></textarea>
     } else {
       li.appendChild(el("span", "name", node.name));
       line.appendChild(mark(0));
-      line.appendChild(document.createTextNode(covered[node.name] ? "Couldn't load its data. Unknown, not healthy." : "Not in the top {{ n_packages|comma }}, so not covered. That doesn't mean healthy, and what it needs isn't followed."));
+      line.appendChild(document.createTextNode(covered[node.name] ? "Couldn't load its data. Unknown, not healthy." : "Not among the most downloaded " + (ECO === "npm" ? "npm" : "PyPI") + " packages we track, so not covered. That doesn't mean healthy, and what it needs isn't followed."));
     }
     li.appendChild(line);
     if (node.via.length) {
@@ -214,6 +230,7 @@ rich[jupyter]==13.7.1"></textarea>
     out.textContent = "";
     if (!parsed.names.length) { statusEl.textContent = "No package names found. Paste one requirement per line, or a pyproject.toml."; return; }
     if (parsed.names.length > MAX_NAMED) { statusEl.textContent = "That's " + parsed.names.length + " packages. One check is limited to " + MAX_NAMED + " named packages, which covers a project's own list."; return; }
+    ECO = parsed.eco;
     go.disabled = true;
     statusEl.textContent = "Checking " + plural(parsed.names.length, "package", "packages") + "…";
     known().then(function (covered) {

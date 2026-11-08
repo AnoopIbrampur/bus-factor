@@ -94,6 +94,13 @@ def test_npm_pages_render_with_scoped_names(tmp_path):
     }
     cmp = {k: block for k in ("top_all_package", "top_all_repo", "top_100_package", "top_100_repo")}
     (tmp_path / "compare.json").write_text(json.dumps(cmp))
+    pd.DataFrame(
+        {
+            "name": ["@scope/alpha", "beta-js"],
+            "found": [True, True],
+            "requires": [["beta-js", "elsewhere"], []],
+        }
+    ).to_parquet(tmp_path / "npm_requires.parquet")
     out = tmp_path / "out"
     site.build(tmp_path, out)
     scoped = (out / "npm/p/@scope/alpha/index.html").read_text()
@@ -101,5 +108,8 @@ def test_npm_pages_render_with_scoped_names(tmp_path):
     assert "None for npm" in scoped and "doesn't mean healthy" in scoped
     beta = (out / "npm/p/beta-js/index.html").read_text()
     assert 'href="../../../npm/p/@scope/alpha/"' in beta
+    rec = json.loads((out / "npm/p/@scope/alpha/data.json").read_text())
+    assert rec["requires"] == ["beta-js", "elsewhere"] and "repo_key" not in rec
+    assert json.loads((out / "npm/names.json").read_text()) == ["@scope/alpha", "beta-js"]
     listing = (out / "npm/index.html").read_text()
     assert "No clear difference" in listing and "Top 5,000, per package" in listing

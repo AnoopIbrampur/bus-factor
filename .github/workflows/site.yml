@@ -30,7 +30,7 @@ jobs:
           scripts/state.sh pull site_packages.parquet.enc data/site_packages.parquet
           scripts/state.sh pull npm_site_packages.parquet.enc data/npm_site_packages.parquet
           for F in simulator.parquet site_context.json requires.parquet survival.json \
-            survival_recal.json revival.json npm_simulator.parquet compare.json; do
+            survival_recal.json revival.json npm_simulator.parquet compare.json npm_requires.parquet; do
             scripts/state.sh pull "$F" "data/$F"
           done
           test -f data/site_packages.parquet

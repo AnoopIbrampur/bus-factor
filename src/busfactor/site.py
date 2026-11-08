@@ -123,8 +123,16 @@ def build_npm(data_dir: Path, out: Path, page) -> None:
     cmp_path = data_dir / "compare.json"
     cmp = narrative.compare_context(json.loads(cmp_path.read_text())) if cmp_path.exists() else None
     page("npm.html", "npm/index.html", "../", "npm packages", "npm", pkgs=pkgs, cmp=cmp)
+    req_path = data_dir / "npm_requires.parquet"
+    requires = {}
+    if req_path.exists():
+        req = pd.read_parquet(req_path)
+        requires = {n: sorted(set(r)) for n, r in zip(req["name"], req["requires"], strict=True)}
+    write(out, "npm/names.json", json.dumps(sorted(p["name"] for p in pkgs)))
     for p in pkgs:
         rel = f"npm/p/{p['name']}/index.html"
+        record = checker_record(p, list(requires.get(p["name"], [])))
+        write(out, f"npm/p/{p['name']}/data.json", json.dumps(record))
         q = {**p, **dependents(sim, p["name"])}
         page(
             "npm_package.html", rel, "../" * rel.count("/"), p["name"], "npm", p=q, n_npm=len(pkgs)
