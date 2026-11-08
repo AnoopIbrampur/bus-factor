@@ -101,8 +101,9 @@ def test_curves_fall_and_stored_models_match():
     panel = panel_of(rows)
     train = survival.training_rows(panel, rows, AS_OF, TRAIN_CUTOFFS)
     frame_ = panel[panel["cutoff"] == TEST_CUTOFFS[-1].isoformat()]
-    for name in ("logistic", "lightgbm"):
-        model = survival.MAKERS[name]().fit(train)
+    makers = {**survival.MAKERS, **survival.RECAL_MAKERS}
+    for name in ("logistic", "lightgbm", "lightgbm_recal"):
+        model = makers[name]().fit(train)
         s = model.survival(frame_)
         assert ((s >= 0) & (s <= 1)).all()
         assert (np.diff(s, axis=1) <= 1e-12).all()
@@ -129,3 +130,33 @@ def test_display_keeps_points_in_order_around_the_frozen_year():
     assert clean["s_adjusted"] == []
     edge = survival.displayed(0.0996, 0.0996, 0.01, year=0.05)
     assert edge["s90"] == 10 and edge["s90_band"] == "Lower chance"  # band uses the raw value
+
+
+def test_recalibration_learns_only_from_the_latest_cutoff_for_its_step():
+    rows = synthetic(60, seed=3)
+    panel = panel_of(rows)
+    train = survival.training_rows(panel, rows, TEST_CUTOFFS[2], TRAIN_CUTOFFS)
+    model = survival.HazardGbmRecal(survival.FEATURES).fit(train)
+    latest = train["cutoff"].max()
+    plain = survival.HazardGbm(survival.FEATURES).fit(train[train["cutoff"] < latest])
+    frame_ = panel[panel["cutoff"] == TEST_CUTOFFS[2].isoformat()]
+    raw = plain.hazard(frame_, 0).clip(survival.EPS, 1 - survival.EPS)
+    z = np.log(raw / (1 - raw))
+    a, b = model.platt.coef_[0][0], model.platt.intercept_[0]
+    np.testing.assert_allclose(model.hazard(frame_, 0), 1 / (1 + np.exp(-(a * z + b))), rtol=1e-6)
+
+
+def test_recal_leakage_rule_holds():
+    rows = synthetic()
+    test = TEST_CUTOFFS[1]
+    t = day_number(test)
+    base = survival.walk_forward(panel_of(rows), rows, AS_OF, survival.RECAL_MAKERS)
+    keys = sorted(rows["repo_key"].unique())[::2]
+    later = pd.concat([rows, frame([(k, t + 10, 0, 50, 0) for k in keys])], ignore_index=True)
+    moved = survival.walk_forward(panel_of(later), later, AS_OF, survival.RECAL_MAKERS)
+    a = base[base["cutoff"] == test.isoformat()].reset_index(drop=True)
+    b = moved[moved["cutoff"] == test.isoformat()].reset_index(drop=True)
+    for name in survival.RECAL_MAKERS:
+        np.testing.assert_allclose(a[name], b[name])
+    result = survival.evaluate_recal(base, reps=50)
+    assert set(result["by_horizon"]) == {"90", "180", "365", "730"}

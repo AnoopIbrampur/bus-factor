@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from . import build, deps, forecast, harvest, live, narrative, site, survival, universe
+from . import build, deps, forecast, harvest, live, narrative, revival, site, survival, universe
 from .config import DATA_DIR, PRIVATE_DIR, SURVIVAL_AS_OF, TEST_CUTOFFS, TRAIN_CUTOFFS
 from .health import FEATURES, day_number, measures_at
 from .repos import host_of, normalize_repo_url, repo_key
@@ -134,8 +134,8 @@ def cmd_backtest(args) -> None:
     print(json.dumps({k: result[k] for k in ("passed", "published_model", "best_baseline")}))
 
 
-def cmd_survival(args) -> None:
-    """Run the pre-registered D18 test. It writes only its own files, never models.json."""
+def pinned_inputs() -> tuple[set, set, pd.DataFrame]:
+    """The D18 pinned harvest: cohort repos read on or after the as-of date, rows up to it."""
     as_of = SURVIVAL_AS_OF
     cohort = pd.read_parquet(DATA_DIR / "cohort.parquet")
     keys = set(cohort["repo_key"].dropna())
@@ -144,6 +144,56 @@ def cmd_survival(args) -> None:
     usable = keys & set(ok["repo_key"])
     rows = build.load_rows(DATA_DIR)
     rows = rows[rows["repo_key"].isin(usable) & (rows["day"] <= day_number(as_of))]
+    return keys, usable, rows
+
+
+def cmd_survival_recal(args) -> None:
+    """Run the pre-registered D21 test. Writes survival_recal.json, and the model only on a pass."""
+    as_of = SURVIVAL_AS_OF
+    _, usable, rows = pinned_inputs()
+    panel = forecast.build_panel(rows)
+    items = survival.walk_forward(panel, rows, as_of, survival.RECAL_MAKERS)
+    result = survival.evaluate_recal(items, args.reps)
+    result["as_of"] = as_of.isoformat()
+    forecast.save_json(result, DATA_DIR / "survival_recal.json")
+    if result["passed"]:
+        cutoffs = sorted(set(TRAIN_CUTOFFS) | set(TEST_CUTOFFS))
+        train = survival.training_rows(panel, rows, as_of, cutoffs)
+        model = survival.HazardGbmRecal(FEATURES).fit(train)
+        spec = {**survival.model_to_json(model, "lightgbm_recal"), "as_of": as_of.isoformat()}
+        forecast.save_json(spec, DATA_DIR / "survival_model.json")
+    print(json.dumps({"passed": result["passed"], "recal_vs_d18": result["recal_vs_d18"]}))
+
+
+def cmd_revival(args) -> None:
+    """Run the pre-registered D22 test. Writes revival.json, and the model only on a pass."""
+    as_of = SURVIVAL_AS_OF
+    _, usable, rows = pinned_inputs()
+    release_days = pd.read_parquet(DATA_DIR / "release_days.parquet")
+    release_days = release_days[release_days["day"] <= day_number(as_of)]
+    panel = revival.build_panel(rows, release_days)
+    preds = revival.walk_forward(panel)
+    preds.to_parquet(DATA_DIR / "revival_preds.parquet", index=False)
+    result = revival.evaluate(preds, args.reps)
+    result["as_of"] = as_of.isoformat()
+    result["quiet_by_cutoff"] = panel.groupby("cutoff").size().to_dict()
+    forecast.save_json(result, DATA_DIR / "revival.json")
+    name = result["published_model"]
+    if name:
+        usable_cutoffs = [
+            c for c in sorted(set(TRAIN_CUTOFFS) | set(TEST_CUTOFFS)) if c <= TEST_CUTOFFS[-1]
+        ]
+        model = forecast.fit_on(panel, usable_cutoffs, revival.MAKERS[name], "revived")
+        train_rows = panel[panel["cutoff"].isin([c.isoformat() for c in usable_cutoffs])]
+        spec = live.model_to_json(model, name, train_rows)
+        forecast.save_json({**spec, "as_of": as_of.isoformat()}, DATA_DIR / "revival_model.json")
+    print(json.dumps({k: result[k] for k in ("passed", "published_model", "best_baseline")}))
+
+
+def cmd_survival(args) -> None:
+    """Run the pre-registered D18 test. It writes only its own files, never models.json."""
+    as_of = SURVIVAL_AS_OF
+    keys, usable, rows = pinned_inputs()
     panel = forecast.build_panel(rows)
     items = survival.walk_forward(panel, rows, as_of)
     items.to_parquet(DATA_DIR / "survival_items.parquet", index=False)
@@ -266,6 +316,12 @@ def main() -> None:
     sv = sub.add_parser("survival")
     sv.add_argument("--reps", type=int, default=2000)
     sv.set_defaults(func=cmd_survival)
+    sr = sub.add_parser("survival-recal")
+    sr.add_argument("--reps", type=int, default=2000)
+    sr.set_defaults(func=cmd_survival_recal)
+    rv = sub.add_parser("revival")
+    rv.add_argument("--reps", type=int, default=2000)
+    rv.set_defaults(func=cmd_revival)
     h = sub.add_parser("harvest")
     h.add_argument("--shard", type=int, required=True)
     h.add_argument("--of", type=int, required=True)

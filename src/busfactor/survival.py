@@ -146,6 +146,36 @@ class HazardGbm(HazardModel):
         return self.model.predict_proba(self._x(frame, np.full(len(frame), interval)))[:, 1]
 
 
+class HazardGbmRecal(HazardModel):
+    """D21: the D18 LightGBM hazard plus one Platt step fitted on the latest training cutoff.
+
+    The tree model learns from every cutoff but the latest. A logistic regression on the logit of
+    its hazard is then fitted on the latest cutoff's rows, and the same slope and intercept are
+    applied to every interval, so the curve still only falls.
+    """
+
+    def __init__(self, columns: list[str]):
+        self.columns = columns
+        self.inner = HazardGbm(columns)
+        self.platt = LogisticRegression(C=1e6, max_iter=1000)
+
+    def _logit(self, frame: pd.DataFrame, intervals: np.ndarray) -> np.ndarray:
+        x = self.inner._x(frame, intervals)
+        p = self.inner.model.predict_proba(x)[:, 1].clip(EPS, 1 - EPS)
+        return np.log(p / (1 - p)).reshape(-1, 1)
+
+    def fit(self, train: pd.DataFrame) -> "HazardGbmRecal":
+        latest = train["cutoff"].max()
+        self.inner.fit(train[train["cutoff"] < latest])
+        calib = train[train["cutoff"] == latest]
+        self.platt.fit(self._logit(calib, calib["interval"].to_numpy()), calib["event"])
+        return self
+
+    def hazard(self, frame: pd.DataFrame, interval: int) -> np.ndarray:
+        z = self._logit(frame, np.full(len(frame), interval))
+        return self.platt.predict_proba(z)[:, 1]
+
+
 class KaplanMeier(HazardModel):
     """No features: each interval's hazard is the share of training rows with a commit in it."""
 
@@ -261,8 +291,52 @@ def evaluate(items: pd.DataFrame, reps: int = 2000) -> dict:
     return result
 
 
+RECAL_MAKERS = {
+    "lightgbm": lambda: HazardGbm(FEATURES),
+    "lightgbm_recal": lambda: HazardGbmRecal(FEATURES),
+}
+
+
+def evaluate_recal(items: pd.DataFrame, reps: int = 2000) -> dict:
+    """Apply the D21 rule: does recalibration beat the D18 curve, with a CI above zero?"""
+    cands = ["lightgbm", "lightgbm_recal"]
+    y = items["y"].to_numpy(float)
+    by_horizon, top_tenth = {}, {}
+    for h, g in items.groupby("horizon"):
+        gy = g["y"].to_numpy(float)
+        by_horizon[str(h)] = {c: metrics(gy, g[c].to_numpy()) for c in cands}
+        top_tenth[str(h)] = {c: calibration_table(gy, g[c].to_numpy())[-1] for c in cands}
+    gain, lo, hi = paired_cluster_ci(items, "lightgbm_recal", "lightgbm", reps)
+    result = {
+        "overall": {c: metrics(y, items[c].to_numpy()) for c in cands},
+        "by_horizon": by_horizon,
+        "top_tenth": top_tenth,
+        "recal_vs_d18": {"gain": gain, "ci": [lo, hi]},
+        "passed": bool(lo > 0),
+        "n_items": int(len(items)),
+        "n_repos": int(items["repo_key"].nunique()),
+    }
+    at_year = items[(items["horizon"] == 365) & items["d13_lightgbm"].notna()]
+    if len(at_year):
+        yy = at_year["y"].to_numpy(float)
+        result["at_365_vs_d13_refit"] = {
+            c: float(log_loss_each(yy, at_year[c].to_numpy()).mean())
+            for c in [*cands, "d13_lightgbm"]
+        }
+    return result
+
+
 def model_to_json(model: HazardModel, name: str) -> dict:
     """Store the adopted hazard model as plain data for the weekly job, which never refits."""
+    if isinstance(model, HazardGbmRecal):
+        return {
+            "name": name,
+            "kind": "lightgbm",
+            "columns": model.columns,
+            "booster": model.inner.model.booster_.model_to_string(),
+            "platt_a": float(model.platt.coef_[0][0]),
+            "platt_b": float(model.platt.intercept_[0]),
+        }
     if isinstance(model, HazardGbm):
         return {
             "name": name,
@@ -288,7 +362,11 @@ def curve_from_json(spec: dict, frame: pd.DataFrame) -> np.ndarray:
     if spec["kind"] == "lightgbm":
         booster = lgb.Booster(model_str=spec["booster"])
         for k in range(len(INTERVALS)):
-            hazards.append(booster.predict(np.column_stack([x, np.full(len(frame), float(k))])))
+            p = booster.predict(np.column_stack([x, np.full(len(frame), float(k))]))
+            if "platt_a" in spec:  # D21 recalibration, one step for every interval
+                p = np.clip(p, EPS, 1 - EPS)
+                p = 1 / (1 + np.exp(-(spec["platt_a"] * np.log(p / (1 - p)) + spec["platt_b"])))
+            hazards.append(p)
     else:
         z = (x - np.array(spec["mean"])) / np.array(spec["scale"])
         coef = np.array(spec["coef"])

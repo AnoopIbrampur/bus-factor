@@ -36,6 +36,9 @@ LOG_FEATURES = {
     "bus_factor",
     "longest_gap_days",
     "age_days",
+    # D22 revival features. Not in D13's feature list, so D13 is unaffected.
+    "releases_365d",
+    "bot_commits_365d",
 }
 BASELINES = {"last_commit": ["days_since_human"], "commits_past_year": ["commits_365d"]}
 EPS = 1e-6

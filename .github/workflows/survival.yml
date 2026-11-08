@@ -4,6 +4,10 @@ name: survival
 # It writes only survival files: models.json and the frozen record are never touched.
 on:
   workflow_dispatch:
+    inputs:
+      test:
+        description: "d18 (curve), d21 (recalibrated curve) or d22 (revival)"
+        default: d18
 permissions:
   contents: write
 concurrency:
@@ -31,16 +35,39 @@ jobs:
             fi
           }
           pin cohort.parquet survival-cohort.parquet data/cohort.parquet
+          pin release_days.parquet survival-release_days.parquet data/release_days.parquet
           for S in 0 1 2 3 4 5; do
             pin "rows-$S.parquet.enc" "survival-rows-$S.parquet.enc" "data/rows-$S.parquet"
             pin "status-$S.parquet" "survival-status-$S.parquet" "data/status-$S.parquet"
           done
       - name: Run the test
-        run: uv run busfactor survival
-      - name: Save
+        env:
+          TEST: ${{ inputs.test }}
         run: |
-          scripts/state.sh push data/survival.json survival.json
-          scripts/state.sh push data/survival_items.parquet survival_items.parquet.enc
-          if [ -f data/survival_model.json ]; then
+          case "$TEST" in
+            d18) uv run busfactor survival ;;
+            d21) uv run busfactor survival-recal ;;
+            d22) uv run busfactor revival ;;
+            *) echo "unknown test $TEST"; exit 1 ;;
+          esac
+      - name: Save
+        env:
+          TEST: ${{ inputs.test }}
+        run: |
+          case "$TEST" in
+            d18)
+              scripts/state.sh push data/survival.json survival.json
+              scripts/state.sh push data/survival_items.parquet survival_items.parquet.enc ;;
+            d21)
+              scripts/state.sh push data/survival_recal.json survival_recal.json ;;
+            d22)
+              scripts/state.sh push data/revival.json revival.json
+              scripts/state.sh push data/revival_preds.parquet revival_preds.parquet.enc
+              if [ -f data/revival_model.json ]; then
+                scripts/state.sh push data/revival_model.json revival_model.json
+              fi ;;
+          esac
+          # A model file exists only after a pass (D18 or D21 write the curve model).
+          if [ "$TEST" != d22 ] && [ -f data/survival_model.json ]; then
             scripts/state.sh push data/survival_model.json survival_model.json
           fi
